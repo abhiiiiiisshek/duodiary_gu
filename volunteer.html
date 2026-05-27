@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Volunteer | She Can Foundation</title>
+  <meta name="description" content="Apply as a student or volunteer at the She Can Foundation. Submit our simple validation form to start.">
+  
+  <!-- Modern Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Navigation Header -->
+  <header class="main-header" id="site-header">
+    <div class="header-container">
+      <a href="index.html" class="logo-link" id="nav-logo" aria-label="She Can Foundation Home">
+        <span class="logo-text">She Can<span class="logo-dot">.</span></span>
+      </a>
+      
+      <nav class="main-nav" id="navigation-menu" aria-label="Primary Navigation">
+        <ul class="nav-list">
+          <li><a href="index.html" class="nav-link" id="link-home">Home</a></li>
+          <li><a href="about.html" class="nav-link" id="link-about">About Us</a></li>
+          <li><a href="volunteer.html" class="nav-link" id="link-volunteer">Volunteer</a></li>
+        </ul>
+      </nav>
+
+      <div class="header-actions">
+        <button id="theme-toggle-btn" class="theme-toggle-button" aria-label="Toggle visual theme" aria-pressed="true">
+          <!-- Sun Icon for Light Mode -->
+          <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"></circle>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path>
+          </svg>
+          <!-- Moon Icon for Dark Mode -->
+          <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
+          </svg>
+          <span class="theme-toggle-slider" aria-hidden="true"></span>
+        </button>
+        <a href="volunteer.html" class="nav-cta-btn" id="header-cta-btn">Join Us</a>
+      </div>
+    </div>
+  </header>
+
+  <main id="main-content">
+    
+    <!-- Volunteer & Form Section -->
+    <section class="join-section" id="join">
+      <div class="section-container join-container">
+        <div class="join-text-block">
+          <span class="section-subtitle">Become a Catalyst</span>
+          <h2 class="section-title">Join Our Community</h2>
+          <p class="join-description">
+            Whether you want to learn coding, seek mentorship, or volunteer as an instructor, we would love to have you. Complete the interest form, and a chapter lead will reach out to you within 48 hours.
+          </p>
+          
+          <div class="contact-details">
+            <div class="detail-item">
+              <span class="detail-icon" aria-hidden="true">📍</span>
+              <span>San Francisco, CA &amp; Worldwide</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-icon" aria-hidden="true">✉️</span>
+              <span>hello@shecanfoundation.org</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="join-form-block">
+          <!-- Volunteer / Contact Form -->
+          <form class="glass-form" id="volunteer-form" novalidate>
+            <h3 class="form-heading">Send Us a Message</h3>
+            
+            <!-- Name Field -->
+            <div class="form-group">
+              <label for="user-name">Full Name</label>
+              <input 
+                type="text" 
+                id="user-name" 
+                name="name" 
+                autocomplete="name" 
+                required 
+                minlength="2"
+                placeholder="Emma Watson" 
+                aria-describedby="name-hint"
+              >
+              <span class="form-hint" id="name-hint">Minimum 2 characters. Only letters and spaces.</span>
+              <span class="form-error" id="name-error" aria-live="polite">Please enter a valid full name.</span>
+            </div>
+            
+            <!-- Email Field -->
+            <div class="form-group">
+              <label for="user-email">Email Address</label>
+              <input 
+                type="email" 
+                id="user-email" 
+                name="email" 
+                autocomplete="email" 
+                required 
+                placeholder="emma@example.com" 
+                aria-describedby="email-hint"
+              >
+              <span class="form-hint" id="email-hint">We will never share your email address.</span>
+              <span class="form-error" id="email-error" aria-live="polite">Please enter a valid email address.</span>
+            </div>
+            
+            <!-- Message Field -->
+            <div class="form-group">
+              <label for="user-message">Tell Us About Yourself</label>
+              <textarea 
+                id="user-message" 
+                name="message" 
+                required 
+                minlength="10"
+                placeholder="Hi! I want to join as a student/volunteer because..." 
+                aria-describedby="message-hint"
+              ></textarea>
+              <span class="form-hint" id="message-hint">Share why you are interested in She Can Foundation. (Min. 10 chars)</span>
+              <span class="form-error" id="message-error" aria-live="polite">Please share a message of at least 10 characters.</span>
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit" class="btn btn-primary btn-submit" id="form-submit-btn">
+              <span>Submit Application</span>
+              <svg class="submit-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+              </svg>
+            </button>
+          </form>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Success Dialog Modal -->
+  <dialog id="success-dialog" class="success-modal">
+    <div class="modal-card">
+      <div class="success-icon-wrapper">
+        <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+      </div>
+      <h2 id="modal-heading">Form Submitted Successfully!</h2>
+      <p id="modal-message">Thank you for reaching out to the **She Can Foundation**. Our coordinator will review your application and contact you soon.</p>
+      <button id="modal-close-btn" class="btn btn-primary" autofocus>Close Window</button>
+    </div>
+  </dialog>
+
+  <!-- Footer -->
+  <footer class="site-footer" id="site-footer">
+    <div class="footer-container">
+      <div class="footer-brand">
+        <span class="footer-logo">She Can<span class="logo-dot">.</span></span>
+        <p class="footer-tagline">Building a supportive, inclusive tech future through education and mentorship.</p>
+      </div>
+      
+      <div class="footer-links">
+        <div class="footer-nav-col">
+          <h4>Navigation</h4>
+          <ul>
+            <li><a href="index.html">Home</a></li>
+            <li><a href="about.html">About Us</a></li>
+            <li><a href="volunteer.html">Volunteer</a></li>
+          </ul>
+        </div>
+        <div class="footer-nav-col">
+          <h4>Connect</h4>
+          <div class="social-links">
+            <a href="#" aria-label="She Can Foundation Twitter" class="social-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z"></path></svg>
+            </a>
+            <a href="#" aria-label="She Can Foundation LinkedIn" class="social-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path><rect x="2" y="9" width="4" height="12"></rect><circle cx="4" cy="4" r="2"></circle></svg>
+            </a>
+            <a href="#" aria-label="She Can Foundation Instagram" class="social-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="footer-copyright">
+      <p>&copy; 2026 She Can Foundation. All rights reserved. Empowering change globally.</p>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="script.js"></script>
+</body>
+</html>

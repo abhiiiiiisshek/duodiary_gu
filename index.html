@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>She Can Foundation | Empowering Women & Girls in Technology</title>
+  <meta name="description" content="She Can Foundation is a non-profit organization dedicated to empowering young women and girls through tech education, career mentorship, and a supportive community.">
+  
+  <!-- Modern Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Navigation Header -->
+  <header class="main-header" id="site-header">
+    <div class="header-container">
+      <a href="index.html" class="logo-link" id="nav-logo" aria-label="She Can Foundation Home">
+        <span class="logo-text">She Can<span class="logo-dot">.</span></span>
+      </a>
+      
+      <nav class="main-nav" id="navigation-menu" aria-label="Primary Navigation">
+        <ul class="nav-list">
+          <li><a href="index.html" class="nav-link" id="link-home">Home</a></li>
+          <li><a href="about.html" class="nav-link" id="link-about">About Us</a></li>
+          <li><a href="volunteer.html" class="nav-link" id="link-volunteer">Volunteer</a></li>
+        </ul>
+      </nav>
+
+      <div class="header-actions">
+        <button id="theme-toggle-btn" class="theme-toggle-button" aria-label="Toggle visual theme" aria-pressed="true">
+          <!-- Sun Icon for Light Mode -->
+          <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"></circle>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path>
+          </svg>
+          <!-- Moon Icon for Dark Mode -->
+          <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
+          </svg>
+          <span class="theme-toggle-slider" aria-hidden="true"></span>
+        </button>
+        <a href="volunteer.html" class="nav-cta-btn" id="header-cta-btn">Join Us</a>
+      </div>
+    </div>
+  </header>
+
+  <main id="main-content">
+    
+    <!-- Hero Section -->
+    <section class="hero-section" id="home">
+      <div class="hero-bg-glow" aria-hidden="true"></div>
+      <div class="section-container hero-container">
+        <div class="hero-text-block">
+          <span class="hero-tagline">A Safe Space for Growth and Tech</span>
+          <h1 class="hero-title" id="main-heading">Empowering the Next Generation of <span class="gradient-text">Women in Tech</span></h1>
+          <p class="hero-description">
+            She Can Foundation provides a protective, welcoming environment where girls and young women can explore technology, learn software development, build projects, and find life-changing career mentorship.
+          </p>
+          <div class="hero-actions">
+            <a href="volunteer.html" class="btn btn-primary" id="hero-primary-cta">Become a Volunteer</a>
+            <a href="about.html" class="btn btn-secondary" id="hero-secondary-cta">Discover Our Story</a>
+          </div>
+        </div>
+        <div class="hero-image-block">
+          <div class="image-wrapper">
+            <img src="assets/she_can_soothing.png" alt="Serene vector illustration of a cozy community tech hub with bookshelves, green houseplants, and a fire, where a supportive group of young women learn technology together." class="hero-image" id="hero-main-img" loading="eager">
+            <div class="image-deco-glow" aria-hidden="true"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Quick Info Feature Section -->
+    <section class="quick-info-section" id="intro-info">
+      <div class="section-container">
+        <div class="info-banner">
+          <div>
+            <span class="section-subtitle">Our Safe Space</span>
+            <h3>Shelter. Support. Education.</h3>
+            <p>
+              We believe coding shouldn't be stressful or intimidating. She Can Foundation creates a warm, gentle ecosystem that removes the fear of failure, offering a protective sanctuary for learning stem disciplines.
+            </p>
+            <a href="about.html" class="btn btn-primary" id="info-cta">Explore Core Pillars</a>
+          </div>
+          <div class="info-banner-action">
+            <!-- Warm Graphic Element / Stats Summary Card -->
+            <div class="pillar-card" style="max-width: 320px; text-align: center; border-color: var(--secondary);">
+              <h4 style="font-family: var(--font-title); font-size: 1.25rem; margin-bottom: 0.5rem; color: var(--secondary);">Weekly Meetups</h4>
+              <p style="margin-bottom: 1.5rem; font-size: 0.9rem;">Join safe, pressure-free peer learning circles led by volunteers.</p>
+              <a href="volunteer.html" class="nav-cta-btn" style="display: inline-flex;">Sign Up Today</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="site-footer" id="site-footer">
+    <div class="footer-container">
+      <div class="footer-brand">
+        <span class="footer-logo">She Can<span class="logo-dot">.</span></span>
+        <p class="footer-tagline">Building a supportive, inclusive tech future through education and mentorship.</p>
+      </div>
+      
+      <div class="footer-links">
+        <div class="footer-nav-col">
+          <h4>Navigation</h4>
+          <ul>
+            <li><a href="index.html">Home</a></li>
+            <li><a href="about.html">About Us</a></li>
+            <li><a href="volunteer.html">Volunteer</a></li>
+          </ul>
+        </div>
+        <div class="footer-nav-col">
+          <h4>Connect</h4>
+          <div class="social-links">
+            <a href="#" aria-label="She Can Foundation Twitter" class="social-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z"></path></svg>
+            </a>
+            <a href="#" aria-label="She Can Foundation LinkedIn" class="social-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path><rect x="2" y="9" width="4" height="12"></rect><circle cx="4" cy="4" r="2"></circle></svg>
+            </a>
+            <a href="#" aria-label="She Can Foundation Instagram" class="social-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="footer-copyright">
+      <p>&copy; 2026 She Can Foundation. All rights reserved. Empowering change globally.</p>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="script.js"></script>
+</body>
+</html>

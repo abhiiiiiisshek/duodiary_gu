@@ -1,0 +1,83 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --theme-bg-gradient: radial-gradient(circle at 50% 20%, #171520 0%, #0c0a0f 100%);
+    --font-serif: "Playfair Display", "Cormorant Garamond", Georgia, serif;
+  }
+
+  body.theme-moonlit {
+    --theme-bg-gradient: radial-gradient(ellipse at top, #111827 0%, #030712 100%);
+    background-color: #030712;
+  }
+
+  body.theme-parchment {
+    --theme-bg-gradient: radial-gradient(ellipse at top, #261e18 0%, #140f0c 100%);
+    background-color: #140f0c;
+  }
+
+  body.theme-rainy {
+    --theme-bg-gradient: radial-gradient(ellipse at top, #0f172a 0%, #020617 100%);
+    background-color: #020617;
+  }
+
+  body.theme-botanical {
+    --theme-bg-gradient: radial-gradient(ellipse at top, #14211a 0%, #08100c 100%);
+    background-color: #08100c;
+  }
+
+  body.theme-aurora {
+    --theme-bg-gradient: radial-gradient(ellipse at top, #1e152a 0%, #090610 100%);
+    background-color: #090610;
+  }
+
+  /* Custom subtle scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.22);
+  }
+}
+
+/* Subtle organic paper texture overlay */
+.paper-texture {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 0);
+  background-size: 24px 24px;
+}
+
+/* High-fidelity print styles for physical book generation */
+@media print {
+  body {
+    background-color: #fff !important;
+    color: #1a1a1a !important;
+  }
+
+  header,
+  footer,
+  button,
+  canvas,
+  .no-print {
+    display: none !important;
+  }
+
+  .paper-texture {
+    background-image: none !important;
+  }
+
+  * {
+    color: #111 !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+}

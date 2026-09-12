@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useDiary } from '../context/DiaryContext';
+import { visibleEnvNames } from '../services/supabase';
 import { AuthOverlay, IntroOverlay, OnboardOverlay } from './IntroOverlay';
 import { ChapterOverlay } from './ChapterOverlay';
 import { TimelineOverlay, ThreadsOverlay, TreeOverlay, VaultOverlay } from './PlaceOverlays';
@@ -162,14 +163,33 @@ function SetupNotice() {
             </p>
             <ol className="mt-4 space-y-2 text-sm text-white/70">
               <li>1. Open your project on the host → <span className="gold">Settings → Environment Variables</span>.</li>
-              <li>2. Add <code className="gold">VITE_SUPABASE_URL</code> and <code className="gold">VITE_SUPABASE_ANON_KEY</code>.</li>
+              <li>
+                2. Add <code className="gold">VITE_SUPABASE_URL</code> and <code className="gold">VITE_SUPABASE_ANON_KEY</code>,
+                spelled exactly like that — a name this build does not recognise is ignored in silence, which looks
+                identical to having set nothing.
+              </li>
               <li>3. <strong className="text-white/90">Redeploy.</strong> These are compiled into the bundle at build time, so an existing deployment will not pick them up on its own.</li>
               <li>4. In Supabase → <span className="gold">Authentication → URL Configuration</span>, add <code className="gold">{window.location.origin}</code> to the redirect list, or Google sign-in will bounce back to the wrong place.</li>
             </ol>
           </>
         )}
 
-        <p className="mt-5 text-[11px] leading-relaxed text-white/35">
+        <div className="glass-quiet mt-5 rounded-2xl p-4">
+          <p className="label">what this build can see</p>
+          {visibleEnvNames.length ? (
+            <ul className="mt-2 space-y-0.5 font-mono text-[11px] text-white/60">
+              {visibleEnvNames.map((name) => <li key={name}>{name}</li>)}
+            </ul>
+          ) : (
+            <p className="mt-2 text-[11px] text-white/45">No VITE_ variables at all reached this build.</p>
+          )}
+          <p className="mt-2 text-[11px] text-white/35">
+            Names only — values are never shown here. If the two you expect are missing or spelled differently,
+            that is the whole problem.
+          </p>
+        </div>
+
+        <p className="mt-4 text-[11px] leading-relaxed text-white/35">
           The anon key belongs in the browser — row-level security, not secrecy, is what protects the data. The
           service_role key must never go in either place.
         </p>

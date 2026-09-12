@@ -1,7 +1,20 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+/**
+ * VITE_PUBLIC_* is accepted alongside VITE_*, because everyone arriving from
+ * Next.js writes NEXT_PUBLIC_ out of habit and Vite silently ignores a name it
+ * does not recognise -- which looks exactly like "the database is not connected".
+ */
+const env = import.meta.env as unknown as Record<string, string | undefined>;
+const pick = (...names: string[]) => names.map((n) => env[n]).find((v) => v && v.trim());
+
+const url = pick('VITE_SUPABASE_URL', 'VITE_PUBLIC_SUPABASE_URL');
+const anonKey = pick('VITE_SUPABASE_ANON_KEY', 'VITE_PUBLIC_SUPABASE_ANON_KEY');
+
+/** Names of the VITE_ variables this build can actually see. Values never leave. */
+export const visibleEnvNames = Object.keys(env)
+  .filter((n) => n.startsWith('VITE_'))
+  .sort();
 
 /**
  * The app is useless without a backend, but it should say so plainly rather than

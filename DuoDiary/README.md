@@ -1,103 +1,120 @@
-# DuoDiary — A Shared Journal with Two Truths
+# DuoDiary — a shared journal with two truths
 
-> *"Two people never step into the same river, nor do they experience the same day alike."*
+A living journal for **one or two people**. Every calendar day becomes one chapter with
+three layers: a **shared memory** both members can read, a **private reflection** only its
+author can ever open, and a **quiet companion** that remembers what you wrote before and
+asks about it later.
 
-DuoDiary is not a messaging app, not a notes app, and not an AI chatbot. It is a **living journal for two people** that captures the same life from two distinct perspectives while respecting that every human being also has thoughts they may never want to share.
-
----
-
-## 🚀 Instant Vercel Deployment
-
-Deploy directly to Vercel in seconds:
-
-### Option A: Via GitHub (Recommended)
-1. Push this repository to GitHub:
-   ```bash
-   git init
-   git add .
-   git commit -m "Initial commit: DuoDiary"
-   git branch -M main
-   git remote add origin https://github.com/<your-username>/<your-repo>.git
-   git push -u origin main
-   ```
-2. Open [vercel.com](https://vercel.com), click **"Add New Project"**, and import your repository.
-3. Vercel automatically detects the Vite framework with the included `vercel.json`.
-4. Click **Deploy**. Your living journal will be live worldwide with SSL, fast edge delivery, and SPA routing!
-
-### Option B: Via Vercel CLI
-```bash
-npm i -g vercel
-vercel
-```
-
----
-
-## 🌟 Core Architecture & Three Daily Layers
-
-Every calendar day generates a single chapter structured across three essential layers:
-
-1. **Layer 1: Shared Memory**
-   - Visible to both partners once unlocked.
-   - Preserves common memories, photos, real microphone voice recordings with audio waveforms, locations, and emotional mood badges.
-   - **Delayed Sharing Mode**: Entries remain unrevealed until both members have submitted their daily contribution, guaranteeing two pure, unaffected versions of the same day.
-
-2. **Layer 2: Private Reflection**
-   - Visible **ONLY** to its owner.
-   - Permanently client-side encrypted using **AES-GCM 256-bit** and **PBKDF2** key derivation via the native Web Crypto API.
-   - Completely inaccessible to the partner, and even the diary owner cannot decrypt the partner's private reflections.
-   - Supports **Time-Locks** (Immediate, 1 Month, 1 Year, 5 Years, or Never).
-
-3. **Layer 3: Intelligent Companion**
-   - Quiet, contextual writing companion.
-   - Builds a long-term **Silent Memory Graph** tracking recurring entities, goals, conflicts, and emotional trajectories.
-   - Asks natural contextual check-in questions (e.g., following up on job interviews, marathon training, distant friendships) rather than generic questionnaire templates.
-   - Writing assistant tools: Polish cadence, smooth sentence structure, deepen intimacy, and expand reflections without unsolicited therapy or judgment.
-
----
-
-## 🎨 Cinematic Atmosphere & Sensory Features
-
-- **5 Immersive Atmosphere Themes**:
-  - 🌌 *Moonlit Sky* (Cosmic indigo, starlight constellations, lunar glow)
-  - 📜 *Vintage Parchment* (Warm vellum, golden dust motes, candle embers)
-  - 🌧️ *Rainy Twilight* (Slate blue, slanted falling rain streaks, window mist)
-  - 🌿 *Botanical Whisper* (Earthy sage, drifting flower petals and eucalyptus leaves)
-  - ✨ *Aurora Minimalist* (Ethereal pastel bioluminescent orbs)
-- **60fps Dynamic Canvas Engine**:
-  - Smooth HTML5 Canvas particle/starfield/rain animations customized per active theme.
-- **Zero-Dependency Procedural Web Audio Synth**:
-  - 100% offline, realistic procedural ambient soundscapes: Gentle Rain, Crackling Fireplace, Celestial Night Chimes, and Fountain Pen on Paper.
-- **Two Truths Persona Switcher**:
-  - Toggle seamlessly between **Julian Vance (Owner)** and **Elena Rostova (Partner)** directly from the header to test delayed reveal and client-side privacy separation.
-- **Emotional Time Capsule Vault**:
-  - Cryptographically sealed vault with countdown timers for reflections meant to be revisited years later.
-- **Storybook Timeline & Keepsake Printing**:
-  - Chronological storybook view of past chapters with search and milestone filtering.
-  - Dedicated print styling (`@media print`) to print a physical bound keepsake book of your relationship.
-
----
-
-## 🛠️ Local Development
+The whole experience is a single continuous 3D world — you never change page, the camera
+moves through the room.
 
 ```bash
-# 1. Install dependencies
 npm install
-
-# 2. Start development server
-npm run dev
-
-# 3. Build for production
-npm run build
-
-# 4. Preview production build
-npm run preview
+npm run dev      # http://localhost:3000
+npm test         # the rules, the memory graph and the crypto
+npm run build    # production bundle
 ```
 
 ---
 
-## 🔒 Authentic Privacy Guarantee
+## Accounts, solo mode and pairing
 
-All encryption operates entirely client-side using the browser's native `window.crypto.subtle` implementation:
-- **Cipher**: AES-GCM (Galois/Counter Mode) with 256-bit keys.
-- **Derivation**: PBKDF2 with 100,000 iterations of SHA-256 and unique 16-byte random salts per entry.
-- Private reflections never leave the device in plaintext.
+- **Register** with a name, email and passphrase. The passphrase is never stored: it
+  derives a PBKDF2 key, and only an encrypted verifier blob is kept. That same key is what
+  decrypts your private pages, so signing in genuinely unlocks the journal.
+- **Write alone** for as long as you like. A solo diary opens every chapter immediately,
+  because there is nobody to wait for.
+- **Invite one person** with a code (`DUO-XXXX-XXXX`). They make their own account and
+  redeem it. A diary holds at most two people — this is a pair, not a group.
+- Several diaries can live side by side on one device; signing in picks out the one that
+  lists you as a member.
+- **Just looking?** "Open the demo diary" builds two real accounts (`julian@duodiary.demo` /
+  `julian-ink`, `elena@duodiary.demo` / `elena-ink`) through the same registration path and
+  seeds six months of history. It leaves any other diary on the device alone.
+
+> **No server.** Accounts, diaries and ciphertext live in this browser's `localStorage`, so
+> pairing works between two accounts on the same device. `src/services/accounts.ts` is the
+> only module that knows this; swapping it for API calls changes nothing above it.
+
+## The rules that make it a diary and not a chat
+
+These live as pure functions in `src/lib/rules.ts` and are covered by tests:
+
+| Promise | How it is enforced |
+| --- | --- |
+| A past day can never be rewritten | `chapter.date < today` — derived from the calendar, never a stored flag that could be flipped |
+| Two independent versions of the same day | In delayed mode neither entry is visible until **both** are submitted; after that the page stops accepting edits |
+| Nobody waits forever | A chapter opens anyway once its own unlock hour passes, or when the day ends |
+| A new chapter every midnight | One timer to local midnight, plus a re-check on window focus |
+| "Never" really means never | A time lock of `never` stores `null`, not `Infinity` — `Infinity` does not survive `JSON.stringify` |
+
+## Private truth
+
+`src/services/crypto.ts` — AES-GCM 256 with PBKDF2-SHA256 (210 000 iterations, the OWASP
+floor).
+
+- Plaintext is **never persisted**. There is no "preview" field beside the ciphertext.
+- The key exists only in memory, only while its owner is signed in, and is dropped on
+  sign-out or when the vault is re-sealed.
+- Your partner and the diary owner hold ciphertext they cannot open. Exported archives carry
+  the ciphertext too, and stay sealed inside the backup.
+- **Time-locked reflections** stay encrypted and undecrypted until their hour: one month,
+  one year, five years, or never.
+
+## The memory graph
+
+`src/services/memoryGraph.ts` reads what you actually wrote — no model call, no network.
+It extracts recurring people, places, hopes, worries, intentions and unkept promises from
+entry text, merges them into long-running threads with an emotional arc, and generates the
+next day's prompts from the graph's own state:
+
+- yesterday's unresolved worry, first
+- a person you have now mentioned several times
+- a thread that has gone quiet for a fortnight
+- a contradiction — feelings that have inverted since you first wrote them down
+
+The writing companion (`writingCompanion.ts`) only tidies mechanics — spacing, punctuation,
+a repeated word, sentence capitals — and tells you exactly what it changed. It does not
+rewrite your voice.
+
+## The world
+
+React 19 · Three.js · React Three Fiber · drei · postprocessing · Tailwind · TypeScript · Vite
+
+One `<Canvas>` for the whole app. Places are camera positions inside a single scene, damped
+toward every frame, so navigation flies rather than cuts.
+
+- **Intro** — darkness, drifting handwritten leaves, a GLSL dust volume, a floating leather
+  diary with gilt rules
+- **The room** — a desk lit by candles whose flames and light both flicker on two
+  out-of-phase sines
+- **Today** — the chapter spread, with ink that bleeds into the page
+- **The shelf** — every year as a bound volume whose spine grows with what you wrote
+- **Threads** — a constellation; stars are threads, lines are days you wrote about both
+- **The tree** — days become leaves, journeys bloom, milestones gild, hard days leave a stub
+- **The vault** — time capsules under wax seals that break open when their hour comes
+
+Leather, paper, ruled pages and wood are generated as canvas textures at runtime, so there
+is no asset pipeline and nothing to download. Five themes change light, fog and palette
+rather than just colours.
+
+**Calmer motion** (in Settings) drops depth of field, parallax, grain and most particles —
+for motion sensitivity and for older machines.
+
+## Layout
+
+```
+src/
+  lib/         time.ts, rules.ts          the calendar and the promises
+  services/    accounts, crypto, memoryGraph, writingCompanion, audioEngine
+  three/       Experience.tsx, palette, textures, objects/
+  ui/          DOM overlay — all text stays real, selectable and screen-readable
+  context/     DiaryContext.tsx           session, diaries, membership
+```
+
+Ambient sound is synthesised procedurally through the Web Audio API — rain, fireplace,
+chimes, pen on paper. No audio files.
+
+## Deploy
+
+Any static host. `vercel.json` is included; `npm run build` emits `dist/`.

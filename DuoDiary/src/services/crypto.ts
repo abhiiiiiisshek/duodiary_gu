@@ -1,120 +1,89 @@
 /**
- * Client-Side Encryption Service for DuoDiary Private Reflections
- * Uses Web Crypto API (AES-GCM 256-bit + PBKDF2 key derivation)
- * 
- * Each user's private reflections are strictly encrypted client-side.
- * Even if the owner or partner accesses the raw store, the ciphertext
- * cannot be decrypted without the author's personal key/passphrase.
+ * Client-side encryption for DuoDiary private reflections.
+ *
+ * Threat model the product actually promises: the partner (and the diary owner)
+ * share the device/store, so the ciphertext must be useless without the author's
+ * own passphrase. That means:
+ *   - plaintext is NEVER persisted (no "preview" field written to storage)
+ *   - the key lives only in memory, only while its owner is unlocked
+ *   - the passphrase is never stored; only a verifier blob is
+ *
+ * AES-GCM 256 + PBKDF2-SHA256. One key derivation per session, not per entry.
  */
 
-function bufferToBase64(buffer: ArrayBuffer): string {
+const PBKDF2_ITERATIONS = 210_000; // OWASP 2023 floor for PBKDF2-SHA256
+const VERIFIER_TOKEN = 'duodiary.verifier.v1';
+
+export interface EncryptedPayload {
+  ciphertext: string;
+  iv: string;
+}
+
+function toB64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
   let binary = '';
-  for (let i = 0; i < bytes.byteLength; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
+  for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
   return btoa(binary);
 }
 
-function base64ToBuffer(base64: string): ArrayBuffer {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes.buffer;
+function fromB64(b64: string): Uint8Array<ArrayBuffer> {
+  const binary = atob(b64);
+  const bytes = new Uint8Array(new ArrayBuffer(binary.length));
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
 }
 
-// Derive AES-GCM key from user secret passphrase and salt
-async function deriveKey(passphrase: string, saltBuffer: Uint8Array): Promise<CryptoKey> {
-  const enc = new TextEncoder();
-  const keyMaterial = await window.crypto.subtle.importKey(
+export function randomSaltB64(): string {
+  return toB64(crypto.getRandomValues(new Uint8Array(16)).buffer);
+}
+
+/** Derive the per-user AES key. Keep the returned CryptoKey in memory only. */
+export async function deriveKey(passphrase: string, saltB64: string): Promise<CryptoKey> {
+  const material = await crypto.subtle.importKey(
     'raw',
-    enc.encode(passphrase),
-    { name: 'PBKDF2' },
+    new TextEncoder().encode(passphrase),
+    'PBKDF2',
     false,
     ['deriveKey']
   );
-
-  return window.crypto.subtle.deriveKey(
-    {
-      name: 'PBKDF2',
-      salt: saltBuffer as unknown as BufferSource,
-      iterations: 100000,
-      hash: 'SHA-256',
-    },
-    keyMaterial,
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt: fromB64(saltB64), iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
+    material,
     { name: 'AES-GCM', length: 256 },
     false,
     ['encrypt', 'decrypt']
   );
 }
 
-export interface EncryptedPayload {
-  ciphertext: string;
-  iv: string;
-  salt: string;
-}
-
-/**
- * Encrypt a private reflection
- */
-export async function encryptPrivateText(
-  plainText: string,
-  userSecretKey: string
-): Promise<EncryptedPayload> {
-  const salt = window.crypto.getRandomValues(new Uint8Array(16));
-  const iv = window.crypto.getRandomValues(new Uint8Array(12));
-  const key = await deriveKey(userSecretKey, salt);
-
-  const enc = new TextEncoder();
-  const encodedText = enc.encode(plainText);
-
-  const encryptedBuffer = await window.crypto.subtle.encrypt(
-    {
-      name: 'AES-GCM',
-      iv: iv,
-    },
+export async function encryptWithKey(key: CryptoKey, plainText: string): Promise<EncryptedPayload> {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const buf = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
     key,
-    encodedText
+    new TextEncoder().encode(plainText)
   );
-
-  return {
-    ciphertext: bufferToBase64(encryptedBuffer),
-    iv: bufferToBase64(iv.buffer),
-    salt: bufferToBase64(salt.buffer),
-  };
+  return { ciphertext: toB64(buf), iv: toB64(iv.buffer) };
 }
 
-/**
- * Decrypt a private reflection
- */
-export async function decryptPrivateText(
-  ciphertextBase64: string,
-  ivBase64: string,
-  saltBase64: string,
-  userSecretKey: string
-): Promise<string> {
+/** Returns null on the wrong key — GCM auth failure is the whole point, don't throw noisily. */
+export async function decryptWithKey(key: CryptoKey, payload: EncryptedPayload): Promise<string | null> {
   try {
-    const salt = new Uint8Array(base64ToBuffer(saltBase64));
-    const iv = new Uint8Array(base64ToBuffer(ivBase64));
-    const ciphertext = base64ToBuffer(ciphertextBase64);
-
-    const key = await deriveKey(userSecretKey, salt);
-
-    const decryptedBuffer = await window.crypto.subtle.decrypt(
-      {
-        name: 'AES-GCM',
-        iv: iv,
-      },
+    const buf = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: fromB64(payload.iv) },
       key,
-      ciphertext
+      fromB64(payload.ciphertext)
     );
-
-    const dec = new TextDecoder();
-    return dec.decode(decryptedBuffer);
-  } catch (err) {
-    console.warn('Decryption failed: Key mismatch or unauthorized attempt', err);
-    throw new Error('Access Denied: Private key mismatch or unauthenticated user');
+    return new TextDecoder().decode(buf);
+  } catch {
+    return null;
   }
+}
+
+/** Verifier lets us reject a wrong passphrase without touching any real entry. */
+export async function makeVerifier(key: CryptoKey): Promise<EncryptedPayload> {
+  return encryptWithKey(key, VERIFIER_TOKEN);
+}
+
+export async function checkVerifier(key: CryptoKey, verifier: EncryptedPayload): Promise<boolean> {
+  return (await decryptWithKey(key, verifier)) === VERIFIER_TOKEN;
 }

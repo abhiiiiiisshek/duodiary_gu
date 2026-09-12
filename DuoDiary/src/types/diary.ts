@@ -2,6 +2,11 @@ export type ThemeId = 'moonlit' | 'parchment' | 'rainy' | 'botanical' | 'aurora'
 
 export type UserRole = 'owner' | 'partner';
 
+export interface EncryptedBlob {
+  ciphertext: string;
+  iv: string;
+}
+
 export interface UserProfile {
   id: string;
   name: string;
@@ -9,8 +14,11 @@ export interface UserProfile {
   email: string;
   role: UserRole;
   joinedDate: string;
-  privateKeySalt?: string;
   favoriteColor?: string;
+  /** Per-user PBKDF2 salt. Public — useless without the passphrase. */
+  keySalt?: string;
+  /** Encrypted known token, used to reject a wrong passphrase without touching real entries. */
+  verifier?: EncryptedBlob;
 }
 
 export interface MediaAttachment {
@@ -18,7 +26,7 @@ export interface MediaAttachment {
   type: 'image' | 'audio' | 'location';
   url: string;
   caption?: string;
-  duration?: number; // for audio voice notes
+  duration?: number;
   locationName?: string;
 }
 
@@ -35,31 +43,31 @@ export interface SharedUserEntry {
 
 export interface Chapter {
   id: string;
-  date: string; // YYYY-MM-DD
+  date: string; // local YYYY-MM-DD
   dayNumber: number;
   title: string;
-  companionPromptUserA: string;
-  companionPromptUserB: string;
-  sharedEntries: {
-    [userId: string]: SharedUserEntry;
-  };
-  isLockedAtMidnight: boolean;
-  isUnlockedForViewing: boolean; // delayed sharing condition met or instant
+  sharedEntries: { [userId: string]: SharedUserEntry };
   milestoneTag?: string;
+  /**
+   * Locking and reveal are DERIVED from the calendar and from who has submitted
+   * (see selectors in DiaryContext). They are deliberately not stored flags —
+   * a stored flag can be edited, and the whole promise of this product is that
+   * a past day cannot be rewritten.
+   */
 }
+
+export type TimeLockDuration = 'immediate' | '1_month' | '1_year' | '5_years' | 'never';
 
 export interface PrivateReflection {
   id: string;
   chapterDate: string;
   authorId: string;
-  ciphertext: string; // Encrypted AES-GCM representation
-  plainTextPreview?: string; // Decrypted in-memory for active owner only
+  ciphertext: string;
   iv: string;
-  salt: string;
   createdAt: string;
-  timeLockDuration: 'immediate' | '1_month' | '1_year' | '5_years' | 'never';
-  unlockTimestamp: number; // Unix timestamp
-  isTimeLocked: boolean;
+  timeLockDuration: TimeLockDuration;
+  /** Unix ms, or null for "never" — Infinity does not survive JSON.stringify. */
+  unlockTimestamp: number | null;
   topicTag?: string;
 }
 
@@ -76,21 +84,7 @@ export interface LifeThread {
   mentionCount: number;
   status: 'active' | 'evolving' | 'paused' | 'resolved';
   emotionalTrajectory: ('hopeful' | 'anxious' | 'joyful' | 'reflective' | 'uncertain' | 'peaceful')[];
-  keyMoments: {
-    date: string;
-    note: string;
-    authorName: string;
-  }[];
-}
-
-export interface CompanionInsight {
-  id: string;
-  date: string;
-  targetUserId: string;
-  contextSubject: string;
-  question: string;
-  referencedThreadId?: string;
-  reasoning: string;
+  keyMoments: { date: string; note: string; authorName: string }[];
 }
 
 export interface DiarySettings {
@@ -99,11 +93,17 @@ export interface DiarySettings {
   description: string;
   createdDate: string;
   ownerId: string;
-  partnerId: string;
+  /** One member (solo journal) or two. Never more — this product is a pair, not a group. */
+  memberIds: string[];
   inviteCode: string;
   theme: ThemeId;
-  delayedSharing: boolean; // true = wait for both to submit before showing; false = instant
-  unlockHour: number; // 24 = midnight locking
+  /** true = neither entry is visible until both are submitted (or the unlock hour passes). */
+  delayedSharing: boolean;
+  /** Local hour on the chapter's own date after which a delayed chapter opens anyway. 24 = midnight. */
+  unlockHour: number;
   ambientSound: 'rain' | 'fireplace' | 'chimes' | 'pen' | 'off';
   ambientVolume: number;
+  reducedMotion: boolean;
 }
+
+export type SceneId = 'intro' | 'auth' | 'room' | 'chapter' | 'timeline' | 'threads' | 'tree' | 'vault';

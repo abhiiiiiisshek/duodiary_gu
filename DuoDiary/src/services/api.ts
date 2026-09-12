@@ -172,21 +172,17 @@ export function makeInviteCode(): string {
   return `DUO-${block()}-${block()}`;
 }
 
-export async function createDiary(ownerId: string, title: string): Promise<string> {
-  const { data, error } = await supabase
-    .from('diaries')
-    .insert({ owner_id: ownerId, title: title.trim() || 'Our Living Pages', invite_code: makeInviteCode() })
-    .select('id')
-    .single();
+/**
+ * One round trip, one transaction: the diary and its first member are created
+ * together, so there is no instant where a diary exists that nobody belongs to.
+ */
+export async function createDiary(_ownerId: string, title: string): Promise<string> {
+  const { data, error } = await supabase.rpc('create_diary', {
+    title,
+    invite_code: makeInviteCode(),
+  });
   if (error) throw error;
-
-  const diaryId = (data as { id: string }).id;
-  const { error: memberError } = await supabase
-    .from('diary_members')
-    .insert({ diary_id: diaryId, user_id: ownerId });
-  if (memberError) throw memberError;
-
-  return diaryId;
+  return data as string;
 }
 
 export async function redeemInvite(code: string): Promise<string> {

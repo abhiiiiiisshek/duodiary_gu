@@ -160,6 +160,26 @@ A sealed entry on one side appears on the other without a refresh, over Supabase
 Ambient sound is synthesised procedurally through the Web Audio API — rain, fireplace,
 chimes, pen on paper. No audio files.
 
+## Checking the promises against a real project
+
+Unit tests cover the rules as pure functions, which proves the logic and nothing
+about the database. `scripts/verify-rules.py` proves the database: it signs in two
+members, has one seal an entry, and asserts the other's **raw API response does not
+contain it** — then that it appears the moment they have both written.
+
+```bash
+# Supabase -> Authentication -> Sign In / Providers -> Anonymous sign-ins -> on
+set -a; . ./.env.local; set +a
+python3 scripts/verify-rules.py
+# then turn anonymous sign-ins back off
+```
+
+Twenty checks: pairing, the invite code, a refused third member, sealing, reveal,
+immutability after opening, forged rows, private reflections, ownership transfer.
+It found a real bug the unit tests could not — diary creation was rejected by its
+own SELECT policy, because `insert().select()` reads the new row back before its
+first member exists.
+
 ## Deploy
 
 Any static host — `vercel.json` is included and `npm run build` emits `dist/`. Set

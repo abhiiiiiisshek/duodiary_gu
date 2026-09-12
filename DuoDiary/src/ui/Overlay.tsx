@@ -133,24 +133,45 @@ function RoomOverlay() {
  * rather than failing somewhere deeper with a network error.
  */
 function SetupNotice() {
+  // The same missing variables mean different things in the two places this can
+  // happen, and "restart the dev server" is useless advice on a deployed site.
+  const local = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(window.location.hostname);
+
   return (
     <div className="pointer-events-auto fixed inset-0 z-30 flex items-center justify-center p-6">
-      <div className="glass w-full max-w-xl rounded-3xl p-8 settle">
+      <div className="glass scroll-area max-h-[88vh] w-full max-w-xl rounded-3xl p-8 settle">
         <p className="label">one step left</p>
         <h2 className="display mt-1 text-3xl text-white/95">Connect a database</h2>
         <p className="serif mt-3 leading-relaxed text-white/60">
           DuoDiary keeps your chapters in Supabase so two people can share a diary from two different devices.
-          It needs a project before it can hold anything.
+          This build cannot see a project yet.
         </p>
-        <ol className="mt-5 space-y-2 text-sm text-white/70">
-          <li>1. Create a free project at <span className="gold">supabase.com</span>.</li>
-          <li>2. Run <code className="gold">supabase/migrations/0001_init.sql</code> in the SQL editor.</li>
-          <li>3. Copy <code className="gold">.env.example</code> to <code className="gold">.env.local</code> and paste your project URL and anon key.</li>
-          <li>4. Restart the dev server.</li>
-        </ol>
+
+        {local ? (
+          <ol className="mt-5 space-y-2 text-sm text-white/70">
+            <li>1. Create a free project at <span className="gold">supabase.com</span>.</li>
+            <li>2. Run <code className="gold">supabase/migrations/*.sql</code> in the SQL editor, in order.</li>
+            <li>3. Copy <code className="gold">.env.example</code> to <code className="gold">.env.local</code> and paste your project URL and anon key.</li>
+            <li>4. Restart the dev server — Vite only reads env files at startup.</li>
+          </ol>
+        ) : (
+          <>
+            <p className="mt-5 text-sm leading-relaxed text-white/70">
+              Your keys live in <code className="gold">.env.local</code>, which is deliberately not committed — so
+              this deployment never received them. Set them on the host instead:
+            </p>
+            <ol className="mt-4 space-y-2 text-sm text-white/70">
+              <li>1. Open your project on the host → <span className="gold">Settings → Environment Variables</span>.</li>
+              <li>2. Add <code className="gold">VITE_SUPABASE_URL</code> and <code className="gold">VITE_SUPABASE_ANON_KEY</code>.</li>
+              <li>3. <strong className="text-white/90">Redeploy.</strong> These are compiled into the bundle at build time, so an existing deployment will not pick them up on its own.</li>
+              <li>4. In Supabase → <span className="gold">Authentication → URL Configuration</span>, add <code className="gold">{window.location.origin}</code> to the redirect list, or Google sign-in will bounce back to the wrong place.</li>
+            </ol>
+          </>
+        )}
+
         <p className="mt-5 text-[11px] leading-relaxed text-white/35">
-          The anon key belongs in the browser — row-level security, not secrecy, is what protects the data. Never
-          put the service_role key in this file.
+          The anon key belongs in the browser — row-level security, not secrecy, is what protects the data. The
+          service_role key must never go in either place.
         </p>
       </div>
     </div>

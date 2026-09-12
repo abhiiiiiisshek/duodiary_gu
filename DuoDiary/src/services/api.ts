@@ -62,12 +62,32 @@ interface EntryRow {
 
 /* ------------------------------------------------------------- mapping */
 
+/**
+ * A monogram built from the person's own id, so an account with no picture still
+ * has a face rather than a broken image. Deterministic: the same person always
+ * gets the same colour.
+ */
+export function monogram(name: string, id: string): string {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) | 0;
+  const hue = Math.abs(hash) % 360;
+  const initials = name.split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('');
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
+<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+<stop offset="0" stop-color="hsl(${hue} 55% 42%)"/><stop offset="1" stop-color="hsl(${(hue + 48) % 360} 48% 22%)"/>
+</linearGradient></defs>
+<rect width="96" height="96" fill="url(#g)"/>
+<text x="48" y="60" font-family="Georgia,serif" font-size="38" fill="rgba(255,255,255,.92)" text-anchor="middle">${initials}</text>
+</svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
 export function toProfile(row: ProfileRow, ownerId?: string): UserProfile {
   return {
     id: row.id,
     name: row.display_name,
     email: '',
-    avatar: row.avatar ?? '',
+    avatar: row.avatar || monogram(row.display_name, row.id),
     role: ownerId === row.id ? 'owner' : 'partner',
     joinedDate: row.joined_date,
     keySalt: row.vault_salt ?? undefined,

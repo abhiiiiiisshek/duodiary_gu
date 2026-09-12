@@ -57,6 +57,7 @@ interface DiaryContextType {
   // auth
   createAccount: (name: string, email: string, password: string) => Promise<boolean>;
   logIn: (email: string, password: string) => Promise<boolean>;
+  logInWithGoogle: () => Promise<void>;
   logOut: () => Promise<void>;
 
   // diary lifecycle
@@ -241,6 +242,21 @@ export const DiaryProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (error) { setAuthError(error.message); return false; }
     audioEngine.playLockSound();
     return true;
+  }, []);
+
+  /**
+   * Google hands control to accounts.google.com and back, so there is nothing to
+   * await here — the session arrives through onAuthStateChange after the redirect.
+   * redirectTo must be an origin listed in Supabase's URL Configuration, and using
+   * the current one keeps localhost and production working from the same build.
+   */
+  const logInWithGoogle = useCallback(async () => {
+    setAuthError(null);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin },
+    });
+    if (error) setAuthError(error.message);
   }, []);
 
   const logOut = useCallback(async () => {
@@ -520,7 +536,7 @@ export const DiaryProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     activeTheme: settings?.theme ?? 'moonlit', scene, isSettingsOpen,
     isPrivateUnlocked: vaultOpen, privateError, userReflections, readReflection,
     isChapterLocked, isChapterRevealed, canEdit, isReflectionOpen, prompts,
-    createAccount, logIn, logOut,
+    createAccount, logIn, logInWithGoogle, logOut,
     createDiary, joinDiary, regenerateInviteCode, deleteDiary, transferOwnership,
     setScene, setActiveChapterId, setIsSettingsOpen, setTheme, setAmbientSound, setAmbientVolume,
     updateSettings, updateSharedEntry, submitSharedEntry,

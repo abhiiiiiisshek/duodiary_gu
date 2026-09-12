@@ -57,12 +57,13 @@ export function IntroOverlay() {
 type Mode = 'signin' | 'register';
 
 export function AuthOverlay() {
-  const { createAccount, logIn, loadDemoDiary, authError, session } = useDiary();
-  const [mode, setMode] = useState<Mode>(() => (localStorage.getItem('duodiary_accounts_v4') ? 'signin' : 'register'));
+  const { createAccount, logIn, authError, session } = useDiary();
+  const [mode, setMode] = useState<Mode>('signin');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [passphrase, setPassphrase] = useState('');
   const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState(false);
 
   // After a successful sign-in the ink writes the member's name before moving on.
   if (session) {
@@ -71,7 +72,7 @@ export function AuthOverlay() {
         <div className="text-center">
           <p className="label">The ink remembers you</p>
           <div className="mx-auto mt-4 max-w-sm">
-            <InkText size={52} duration={2.2}>{`Welcome back, ${session.account.name.split(' ')[0]}`}</InkText>
+            <InkText size={52} duration={2.2}>{`Welcome back, ${(session.user.user_metadata?.display_name ?? session.user.email ?? '').split(' ')[0]}`}</InkText>
           </div>
         </div>
       </Frame>
@@ -81,8 +82,13 @@ export function AuthOverlay() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
-    if (mode === 'register') await createAccount(name, email, passphrase);
-    else await logIn(email, passphrase);
+    if (mode === 'register') {
+      // With email confirmation on, sign-up returns no session — say so instead
+      // of leaving the reader staring at an unchanged form.
+      if (await createAccount(name, email, passphrase)) setSent(true);
+    } else {
+      await logIn(email, passphrase);
+    }
     setBusy(false);
     setPassphrase('');
   };
@@ -98,8 +104,8 @@ export function AuthOverlay() {
         {mode === 'signin' ? 'Open your diary' : 'Begin a diary'}
       </h2>
       <p className="mt-2 text-[11px] leading-relaxed text-white/40">
-        Your passphrase is never stored — it derives the key that encrypts your private pages. Lose it and those
-        pages stay closed forever, including to us.
+        This password signs you in. Your private pages are sealed separately, behind a passphrase you choose once
+        inside — so resetting this password can never destroy them.
       </p>
 
       <form className="mt-5 space-y-3" onSubmit={submit}>
@@ -124,31 +130,29 @@ export function AuthOverlay() {
             autoComplete="email"
           />
         </Field>
-        <Field label="Passphrase">
+        <Field label="Password">
           <input
             className="field"
             type="password"
             value={passphrase}
             onChange={(e) => setPassphrase(e.target.value)}
-            placeholder={mode === 'register' ? 'at least 8 characters' : 'your passphrase'}
+            placeholder={mode === 'register' ? 'at least 8 characters' : 'your password'}
             autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
           />
         </Field>
 
         {authError && <p className="text-xs text-rose-300/80">{authError}</p>}
+        {sent && (
+          <p className="text-xs text-emerald-200/80">
+            Account created. If your project has email confirmation switched on, open the link we sent you, then
+            sign in.
+          </p>
+        )}
 
         <button className="btn w-full" disabled={busy}>
           {busy ? 'Working…' : mode === 'register' ? 'Create my account' : 'Sign in'}
         </button>
       </form>
-
-      <div className="rule my-6" />
-      <button
-        className="w-full text-xs text-white/35 underline-offset-4 hover:text-white/70 hover:underline"
-        onClick={() => loadDemoDiary()}
-      >
-        just looking? open the demo diary instead
-      </button>
     </Frame>
   );
 }
@@ -157,13 +161,14 @@ export function AuthOverlay() {
 
 /** Signed in, but not yet part of a diary: start one alone, or join a partner's. */
 export function OnboardOverlay() {
-  const { createDiary, joinDiary, authError, canJoin, session, logOut } = useDiary();
+  const { createDiary, joinDiary, authError, session, logOut } = useDiary();
   const [title, setTitle] = useState('');
   const [code, setCode] = useState('');
+  const [busy, setBusy] = useState(false);
 
   return (
     <Frame>
-      <p className="label">Signed in as {session?.account.email}</p>
+      <p className="label">Signed in as {session?.user.email}</p>
       <h2 className="display mt-1 text-3xl text-white/95">Where will you write?</h2>
 
       <div className="mt-6 space-y-3">
@@ -180,21 +185,24 @@ export function OnboardOverlay() {
             placeholder="name your diary (optional)"
           />
           <div className="mt-3 flex flex-wrap gap-2">
-            <button className="btn" onClick={() => createDiary(title, false)}>Write alone</button>
-            <button className="btn-ghost" onClick={() => createDiary(title, true)}>Create and invite someone</button>
+            <button className="btn" disabled={busy} onClick={() => { setBusy(true); void createDiary(title, false).finally(() => setBusy(false)); }}>
+              Write alone
+            </button>
+            <button className="btn-ghost" disabled={busy} onClick={() => { setBusy(true); void createDiary(title, true).finally(() => setBusy(false)); }}>
+              Create and invite someone
+            </button>
           </div>
         </section>
 
         <section className="glass-quiet rounded-2xl p-5">
           <h3 className="serif text-lg text-white/90">Join with an invitation</h3>
           <p className="mt-1 text-[11px] leading-relaxed text-white/45">
-            {canJoin
-              ? 'A diary on this device is waiting for its second member. Enter the owner’s code.'
-              : 'No diary here is waiting for a second member — the owner creates one first, then shares their code.'}
+            Ask the person who started the diary for their code. They can be anywhere — the invitation travels,
+            not the browser.
           </p>
           <form
             className="mt-3 flex gap-2"
-            onSubmit={(e) => { e.preventDefault(); joinDiary(code); }}
+            onSubmit={(e) => { e.preventDefault(); void joinDiary(code); }}
           >
             <input
               className="field flex-1 uppercase tracking-widest"
@@ -202,7 +210,7 @@ export function OnboardOverlay() {
               onChange={(e) => setCode(e.target.value)}
               placeholder="DUO-XXXX-XXXX"
             />
-            <button className="btn" disabled={!canJoin}>Join</button>
+            <button className="btn" disabled={!code.trim()}>Join</button>
           </form>
         </section>
       </div>
@@ -211,7 +219,7 @@ export function OnboardOverlay() {
 
       <button
         className="mt-5 text-xs text-white/30 underline-offset-4 hover:text-white/70 hover:underline"
-        onClick={logOut}
+        onClick={() => void logOut()}
       >
         sign out
       </button>

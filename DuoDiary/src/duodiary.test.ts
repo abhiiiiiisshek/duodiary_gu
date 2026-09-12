@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Chapter, DiarySettings, PrivateReflection } from './types/diary';
 import { daysBetween, hourOnDate, shiftISO, toISODate, todayISO } from './lib/time';
 import { canEditChapter, isChapterLocked, isChapterRevealed, isReflectionOpen } from './lib/rules';
-import { extractSignals, generatePrompts, mergeSignals } from './services/memoryGraph';
+import { detectEmotion, extractSignals, generatePrompts, mergeSignals } from './services/memoryGraph';
 import { decryptWithKey, deriveKey, encryptWithKey, makeVerifier, checkVerifier, randomSaltB64 } from './services/crypto';
 import { tidy } from './services/writingCompanion';
 
@@ -16,11 +16,14 @@ const settings = (over: Partial<DiarySettings> = {}): DiarySettings => ({
   ...over,
 });
 
-const chapter = (date: string, done: Record<string, boolean>): Chapter => ({
+/** closesAt/unlockAt are what the rules actually read, exactly as the server stores them. */
+const chapter = (date: string, done: Record<string, boolean>, unlockHour = 24): Chapter => ({
   id: `c_${date}`,
   date,
   dayNumber: 1,
   title: 'x',
+  closesAt: new Date(hourOnDate(date, 24)).toISOString(),
+  unlockAt: new Date(hourOnDate(date, unlockHour)).toISOString(),
   sharedEntries: Object.fromEntries(
     Object.entries(done).map(([id, isCompleted]) => [
       id,
@@ -47,14 +50,16 @@ describe('local calendar', () => {
 });
 
 describe('a past day is immutable', () => {
-  it('locks yesterday and leaves today open', () => {
-    expect(isChapterLocked(chapter('2026-09-11', { a: true }), TODAY)).toBe(true);
-    expect(isChapterLocked(chapter(TODAY, { a: false }), TODAY)).toBe(false);
+  const duringToday = new Date(2026, 8, 12, 14, 0).getTime();
+
+  it('locks a chapter once its own local midnight has passed', () => {
+    expect(isChapterLocked(chapter('2026-09-11', { a: true }), TODAY, duringToday)).toBe(true);
+    expect(isChapterLocked(chapter(TODAY, { a: false }), TODAY, duringToday)).toBe(false);
   });
 
   it('refuses edits to an archived chapter', () => {
     const past = chapter('2026-09-11', { a: true, b: false });
-    expect(canEditChapter(past, settings(), TODAY)).toBe(false);
+    expect(canEditChapter(past, settings(), TODAY, duringToday)).toBe(false);
   });
 });
 
@@ -72,7 +77,7 @@ describe('delayed sharing', () => {
   });
 
   it('opens anyway once the unlock hour passes', () => {
-    const c = chapter(TODAY, { a: true, b: false });
+    const c = chapter(TODAY, { a: true, b: false }, 21);
     const after = new Date(2026, 8, 12, 21, 30).getTime();
     expect(isChapterRevealed(c, settings({ unlockHour: 21 }), TODAY, after)).toBe(true);
   });
@@ -137,6 +142,44 @@ describe('the memory graph reads what was actually written', () => {
     expect(priya).toHaveLength(1);
     expect(priya[0].mentionCount).toBe(2);
     expect(priya[0].lastMentionedDate).toBe(TODAY);
+  });
+
+  it('follows a pronoun back to the person it refers to', () => {
+    const found = extractSignals('I met Priya at noon. She had already picked the table.');
+    const priya = found.filter((s) => s.name === 'Priya');
+    expect(priya.length).toBeGreaterThan(1);
+    expect(priya.some((s) => /already picked the table/.test(s.excerpt))).toBe(true);
+  });
+
+  it('reads a worry that is not phrased with the word worry', () => {
+    const found = extractSignals("I am dreading the conversation with my brother. I keep meaning to call him back.");
+    expect(found.some((s) => s.kind === 'worry' && /conversation with my brother/i.test(s.name))).toBe(true);
+    expect(found.some((s) => s.kind === 'unkept promise' && /call him back/i.test(s.name))).toBe(true);
+  });
+
+  it('does not read "not happy" as happiness', () => {
+    expect(detectEmotion('I was not happy about it, and I could not settle all evening')).not.toBe('joyful');
+  });
+
+  it('quotes back the sentence a question came from', () => {
+    const graph = mergeSignals([], extractSignals('I am nervous about the site visit on Monday.'), {
+      date: TODAY, userId: 'a', authorName: 'A',
+    });
+    const [prompt] = generatePrompts('a', graph, [], TODAY);
+    expect(prompt.quote).toMatch(/nervous about the site visit/i);
+  });
+
+  it('counts a person by the days they appear on, not by repetitions in one entry', () => {
+    let graph = mergeSignals([], extractSignals('Priya, Priya, Priya again.'), {
+      date: '2026-09-10', userId: 'a', authorName: 'A',
+    });
+    // three mentions, but only one day: not yet a thread worth asking about
+    expect(generatePrompts('a', graph, [], TODAY).some((p) => /come up on/.test(p.question))).toBe(false);
+
+    for (const date of ['2026-09-11', TODAY]) {
+      graph = mergeSignals(graph, extractSignals('Coffee with Priya.'), { date, userId: 'a', authorName: 'A' });
+    }
+    expect(generatePrompts('a', graph, [], TODAY).some((p) => /come up on 3 different days/.test(p.question))).toBe(true);
   });
 
   it('revisits a thread that has gone quiet for weeks', () => {

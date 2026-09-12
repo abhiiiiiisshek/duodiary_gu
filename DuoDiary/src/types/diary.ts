@@ -49,6 +49,13 @@ export interface Chapter {
   sharedEntries: { [userId: string]: SharedUserEntry };
   milestoneTag?: string;
   /**
+   * The writer's own local midnight and unlock hour, stored as absolute instants
+   * when the chapter is created. The server enforces the same two values, so a
+   * day means the same thing on both sides of the wire regardless of timezone.
+   */
+  closesAt: string;
+  unlockAt: string;
+  /**
    * Locking and reveal are DERIVED from the calendar and from who has submitted
    * (see selectors in DiaryContext). They are deliberately not stored flags —
    * a stored flag can be edited, and the whole promise of this product is that

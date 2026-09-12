@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useDiary } from '../context/DiaryContext';
 import { MediaAttachment, TimeLockDuration } from '../types/diary';
 import { formatLongDate } from '../lib/time';
@@ -14,10 +14,17 @@ const LOCK_LABELS: Record<TimeLockDuration, string> = {
   never: 'Never — write it and let it go',
 };
 
+/**
+ * One open book. Your day on the left page, your partner's on the right —
+ * physically present but blurred until the chapter opens, because knowing
+ * there is something there is the point. The private page is the corner you
+ * peel back. Days turn; they do not navigate.
+ */
 export function ChapterOverlay() {
   const {
-    activeChapter, currentUser, otherUser, isSolo, prompts, canEdit, isChapterLocked, isChapterRevealed,
-    updateSharedEntry, submitSharedEntry, settings, setScene, setIsSettingsOpen,
+    activeChapter, chapters, setActiveChapterId, currentUser, otherUser, isSolo, prompts,
+    canEdit, isChapterLocked, isChapterRevealed, updateSharedEntry, submitSharedEntry, settings,
+    setIsSettingsOpen,
   } = useDiary();
 
   const mine = activeChapter && currentUser ? activeChapter.sharedEntries[currentUser.id] : undefined;
@@ -28,223 +35,248 @@ export function ChapterOverlay() {
 
   const [draft, setDraft] = useState(mine?.text ?? '');
   const [note, setNote] = useState<string | null>(null);
+  const [privateOpen, setPrivateOpen] = useState(false);
   const recorder = useRecorder();
 
   useEffect(() => { setDraft(mine?.text ?? ''); }, [activeChapter?.id, mine?.text]);
 
-  // Autosave the draft — losing a day's writing to a stray reload is unforgivable here.
+  // Autosave: losing a day's writing to a stray reload is unforgivable here.
   useEffect(() => {
     if (!editable || draft === (mine?.text ?? '')) return;
-    const t = window.setTimeout(() => updateSharedEntry(draft), 500);
-    return () => clearTimeout(t);
+    const timer = window.setTimeout(() => void updateSharedEntry(draft), 600);
+    return () => clearTimeout(timer);
   }, [draft, editable, mine?.text, updateSharedEntry]);
 
-  const attach = async (file: File) => {
+  const neighbours = useMemo(() => {
+    const ordered = [...chapters].sort((a, b) => a.date.localeCompare(b.date));
+    const index = ordered.findIndex((c) => c.id === activeChapter?.id);
+    return { prev: ordered[index - 1], next: ordered[index + 1] };
+  }, [chapters, activeChapter?.id]);
+
+  if (!activeChapter || !currentUser || !settings) return null;
+  const partner = otherUser?.name.split(' ')[0] ?? 'your partner';
+
+  const attach = (file: File) => {
     const reader = new FileReader();
-    reader.onload = () => {
-      const attachment: MediaAttachment = {
-        id: `att_${Date.now()}`,
-        type: 'image',
-        url: String(reader.result),
-        caption: file.name,
-      };
-      updateSharedEntry(draft, mine?.mood, [...(mine?.attachments ?? []), attachment]);
-    };
+    reader.onload = () =>
+      void updateSharedEntry(draft, mine?.mood, [
+        ...(mine?.attachments ?? []),
+        { id: `att_${Date.now()}`, type: 'image', url: String(reader.result), caption: file.name },
+      ]);
     reader.readAsDataURL(file);
   };
 
   const finishRecording = async () => {
     const result = await recorder.stop();
     if (!result) return;
-    const attachment: MediaAttachment = {
-      id: `voice_${Date.now()}`,
-      type: 'audio',
-      url: result.url,
-      duration: result.duration,
-      caption: 'Voice note',
-    };
-    updateSharedEntry(draft, mine?.mood, [...(mine?.attachments ?? []), attachment]);
+    await updateSharedEntry(draft, mine?.mood, [
+      ...(mine?.attachments ?? []),
+      { id: `voice_${Date.now()}`, type: 'audio', url: result.url, duration: result.duration, caption: 'Voice note' },
+    ]);
   };
 
-  if (!activeChapter || !currentUser || !settings) return null;
-  const partner = otherUser?.name.split(' ')[0] ?? 'your partner';
+  const turnTo = (id?: string) => {
+    if (!id) return;
+    audioEngine.playPageTurn();
+    setActiveChapterId(id);
+    setPrivateOpen(false);
+  };
 
   return (
-    <div className="pointer-events-none fixed inset-0 z-20 flex justify-center px-4 pb-28 pt-20">
-      <div className="pointer-events-auto flex w-full max-w-6xl gap-5 settle">
-        {/* ---------------------------------------------------------- shared */}
-        <section className="glass scroll-area flex-1 rounded-3xl p-7">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="label">{formatLongDate(activeChapter.date)}</p>
-              <h2 className="display mt-1 text-3xl text-white/95">
-                {activeChapter.title}
-                <span className="ml-3 align-middle text-sm text-white/30">day {activeChapter.dayNumber}</span>
-              </h2>
-            </div>
-            <span
-              className={`shrink-0 rounded-full border px-3 py-1 text-[10px] uppercase tracking-widest ${
-                locked
-                  ? 'border-white/15 text-white/45'
-                  : revealed
-                    ? 'border-emerald-300/40 text-emerald-200/80'
-                    : 'border-amber-300/40 text-amber-200/80'
-              }`}
-            >
-              {locked ? 'Archived · immutable' : revealed ? 'Open' : 'Sealed until both write'}
-            </span>
-          </div>
+    <div className="pointer-events-none fixed inset-0 z-20 flex items-center justify-center px-4 pb-24 pt-16">
+      <div className="spread pointer-events-auto settle" key={activeChapter.id}>
+        {/* ------------------------------------------------------- left page */}
+        <section className="page page-left turn flex flex-col">
+          <header>
+            <p className="page-label">{formatLongDate(activeChapter.date)}</p>
+            <h2 className="display mt-1 text-2xl" style={{ color: 'rgb(var(--ink))' }}>
+              {activeChapter.title}
+            </h2>
+          </header>
 
-          {prompts.length > 0 && !locked && (
-            <div className="mt-6 space-y-3 stagger">
-              {prompts.map((prompt) => (
-                <blockquote key={prompt.id} className="glass-quiet rounded-2xl p-4">
-                  <p className="label">{prompt.category}</p>
-                  <p className="serif mt-1.5 text-lg leading-snug text-white/85">{prompt.question}</p>
-                  <p className="mt-2 text-[11px] italic text-white/35">{prompt.context}</p>
-                </blockquote>
-              ))}
+          {prompts.length > 0 && editable && (
+            <div className="mt-4 border-l-2 pl-3" style={{ borderColor: 'rgb(var(--ink) / .25)' }}>
+              <p className="serif text-[15px] italic leading-snug" style={{ color: 'rgb(var(--ink-soft))' }}>
+                {prompts[0].question}
+              </p>
+              {prompts[0].quote && (
+                <p className="hand mt-1 text-[15px]" style={{ color: 'rgb(var(--ink-soft) / .75)' }}>
+                  you wrote: “{prompts[0].quote}”
+                </p>
+              )}
             </div>
           )}
 
-          <div className="rule my-6" />
-
-          {editable ? (
-            <>
+          <div className="scroll-area mt-5 flex-1 pr-1">
+            {editable ? (
               <textarea
-                className="paper-field min-h-[220px]"
+                className="ink-field min-h-full"
                 placeholder="Write the day as you actually lived it…"
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 onKeyDown={() => audioEngine.playPenScratch()}
-                aria-label="Your shared entry for this day"
+                aria-label="Your entry for this day"
               />
+            ) : (
+              <div className="ink-body">
+                {mine?.text || (
+                  <span className="italic" style={{ color: 'rgb(var(--ink-soft) / .6)' }}>
+                    You wrote nothing on this day.
+                  </span>
+                )}
+              </div>
+            )}
+            <Attachments items={mine?.attachments ?? []} />
+          </div>
 
-              <div className="mt-4 flex flex-wrap items-center gap-2">
+          {editable ? (
+            <footer className="mt-3 space-y-2">
+              <div className="flex flex-wrap items-center gap-1.5">
                 {MOODS.map((mood) => (
                   <button
                     key={mood}
-                    className="btn-ghost"
+                    className="page-tool"
                     data-active={mine?.mood === mood}
-                    onClick={() => updateSharedEntry(draft, mood)}
+                    onClick={() => void updateSharedEntry(draft, mood)}
                   >
                     {mood}
                   </button>
                 ))}
               </div>
-
-              <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-white/45">
-                <label className="btn-ghost cursor-pointer">
-                  Add photo
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => e.target.files?.[0] && attach(e.target.files[0])}
-                  />
+              <div className="flex flex-wrap items-center gap-1.5">
+                <label className="page-tool cursor-pointer">
+                  photo
+                  <input type="file" accept="image/*" className="hidden"
+                         onChange={(e) => e.target.files?.[0] && attach(e.target.files[0])} />
                 </label>
-                <button
-                  className="btn-ghost"
-                  data-active={recorder.isRecording}
-                  onClick={() => (recorder.isRecording ? finishRecording() : recorder.start())}
-                >
-                  {recorder.isRecording ? 'Stop recording' : 'Voice note'}
+                <button className="page-tool" data-active={recorder.isRecording}
+                        onClick={() => (recorder.isRecording ? void finishRecording() : void recorder.start())}>
+                  {recorder.isRecording ? 'stop' : 'voice'}
                 </button>
-                <input
-                  className="glass-quiet flex-1 rounded-full bg-transparent px-4 py-2 text-xs outline-none placeholder:text-white/25"
-                  placeholder="Where were you?"
-                  defaultValue={mine?.location ?? ''}
-                  onBlur={(e) => updateSharedEntry(draft, mine?.mood, undefined, e.target.value)}
-                />
-                <span>{wordCount(draft)} words</span>
+                <button className="page-tool" onClick={() => {
+                  const result = tidy(draft);
+                  setDraft(result.text);
+                  setNote(result.changes.join(', '));
+                }}>
+                  tidy
+                </button>
+                <span className="ml-auto text-[11px]" style={{ color: 'rgb(var(--ink-soft) / .7)' }}>
+                  {wordCount(draft)} words
+                </span>
+                <button className="btn !px-4 !py-1.5 !text-xs" disabled={!draft.trim()}
+                        onClick={() => void submitSharedEntry()}>
+                  {mine?.isCompleted ? 'update' : 'seal the day'}
+                </button>
               </div>
-
-              {recorder.error && <p className="mt-2 text-xs text-rose-300/80">{recorder.error}</p>}
-
-              <Attachments items={mine?.attachments ?? []} />
-
-              <div className="mt-6 flex flex-wrap items-center gap-3">
-                <button
-                  className="btn-ghost"
-                  onClick={() => {
-                    const result = tidy(draft);
-                    setDraft(result.text);
-                    setNote(result.changes.join(', '));
-                  }}
-                >
-                  Tidy my writing
-                </button>
-                <button className="btn" disabled={!draft.trim()} onClick={submitSharedEntry}>
-                  {mine?.isCompleted ? 'Update today’s entry' : 'Seal today’s entry'}
-                </button>
-                {note && <span className="text-[11px] italic text-white/40">{note}</span>}
-              </div>
-              <p className="mt-3 text-[11px] leading-relaxed text-white/30">
-                {isSolo
-                  ? 'You are writing alone. This page stays editable until midnight, then closes for good.'
-                  : settings.delayedSharing
-                    ? `Neither entry opens until ${partner} has written too. After that this page cannot be edited — two independent versions of the day, not a conversation.`
-                    : 'Instant sharing is on: your partner sees this as soon as you seal it.'}
-              </p>
-            </>
+              {note && <p className="text-[11px] italic" style={{ color: 'rgb(var(--ink-soft) / .8)' }}>{note}</p>}
+            </footer>
           ) : (
-            <article className="serif whitespace-pre-wrap text-lg leading-relaxed text-white/80">
-              {mine?.text || <span className="italic text-white/35">You wrote nothing on this day.</span>}
-              <Attachments items={mine?.attachments ?? []} />
-              <p className="mt-6 text-[11px] uppercase tracking-widest text-white/30">
-                {locked ? 'This day is closed. It stays exactly as it was written.' : 'This chapter has opened — it can no longer be edited.'}
-              </p>
-            </article>
+            <p className="page-label mt-3">
+              {locked ? 'closed · exactly as it was written' : 'opened · no longer editable'}
+            </p>
+          )}
+
+          {neighbours.prev && (
+            <button className="page-label absolute bottom-3 left-6 hover:underline"
+                    onClick={() => turnTo(neighbours.prev.id)}>
+              ‹ {neighbours.prev.date.slice(5)}
+            </button>
           )}
         </section>
 
-        {/* --------------------------------------------------- other + private */}
-        <aside className="flex w-[30rem] shrink-0 flex-col gap-5">
-          {otherUser ? (
-          <section className="glass scroll-area max-h-[46%] rounded-3xl p-6">
-            <p className="label">{partner}’s side of this day</p>
-            {revealed ? (
-              theirs?.text ? (
-                <>
-                  <p className="serif mt-3 whitespace-pre-wrap leading-relaxed text-white/80">{theirs.text}</p>
-                  <p className="mt-3 text-[11px] text-white/35">
-                    felt {theirs.mood}{theirs.location ? ` · ${theirs.location}` : ''}
-                  </p>
-                  <Attachments items={theirs.attachments ?? []} />
-                </>
-              ) : (
-                <p className="serif mt-3 italic text-white/35">They left this day blank.</p>
-              )
-            ) : (
-              <div className="mt-4">
-                <p className="serif italic leading-relaxed text-white/45">
-                  Still sealed. {theirs?.isCompleted
-                    ? `${partner} has finished writing — your entry is what is holding it shut.`
-                    : `${partner} has not finished writing yet.`}
-                </p>
-                <p className="mt-3 text-[11px] text-white/25">
-                  Opens automatically at {settings.unlockHour >= 24 ? 'midnight' : `${settings.unlockHour}:00`} if one of you never writes.
-                </p>
+        {/* ------------------------------------------------------ right page */}
+        <section className="page page-right turn flex flex-col">
+          {privateOpen ? (
+            <PrivatePage onClose={() => setPrivateOpen(false)} />
+          ) : otherUser ? (
+            <>
+              <header>
+                <p className="page-label">{partner}</p>
+                <h2 className="display mt-1 text-2xl" style={{ color: 'rgb(var(--ink))' }}>
+                  {revealed ? 'their side of this day' : 'still sealed'}
+                </h2>
+              </header>
+
+              <div className="scroll-area mt-5 flex-1 pr-1">
+                {revealed ? (
+                  theirs?.text ? (
+                    <>
+                      <div className="ink-body">{theirs.text}</div>
+                      <p className="page-label mt-4">
+                        felt {theirs.mood}{theirs.location ? ` · ${theirs.location}` : ''}
+                      </p>
+                      <Attachments items={theirs.attachments ?? []} />
+                    </>
+                  ) : (
+                    <p className="ink-body italic" style={{ color: 'rgb(var(--ink-soft) / .6)' }}>
+                      {partner} left this day blank.
+                    </p>
+                  )
+                ) : (
+                  <>
+                    <div className="ink-body sealed-text" aria-hidden>
+                      {'The words are here. They are simply not yours to read yet, and will not be until you have written your own side of the day in full, without having read a single line of theirs.'}
+                    </div>
+                    <p className="serif mt-6 text-[15px] italic leading-relaxed"
+                       style={{ color: 'rgb(var(--ink-soft))' }}>
+                      {theirs?.isCompleted
+                        ? `${partner} has finished. Your entry is what is holding this page shut.`
+                        : `${partner} has not finished writing yet.`}
+                    </p>
+                    <p className="page-label mt-3">
+                      opens on its own at {settings.unlockHour >= 24 ? 'midnight' : `${settings.unlockHour}:00`}
+                    </p>
+                  </>
+                )}
               </div>
-            )}
-          </section>
+            </>
           ) : (
-            <section className="glass rounded-3xl p-6">
-              <p className="label">Writing alone</p>
-              <p className="serif mt-2 leading-relaxed text-white/50">
-                This diary has one member. Every chapter opens to you immediately, because there is nobody to wait for.
-              </p>
-              <button className="btn-ghost mt-4" onClick={() => setIsSettingsOpen(true)}>
-                Invite someone to write the other half
-              </button>
-            </section>
+            <>
+              <header>
+                <p className="page-label">what the diary remembers</p>
+                <h2 className="display mt-1 text-2xl" style={{ color: 'rgb(var(--ink))' }}>
+                  writing alone
+                </h2>
+              </header>
+              <div className="scroll-area mt-5 flex-1 space-y-4 pr-1">
+                {prompts.map((prompt) => (
+                  <div key={prompt.id}>
+                    <p className="page-label">{prompt.category}</p>
+                    <p className="serif mt-1 text-[17px] leading-snug" style={{ color: 'rgb(var(--ink))' }}>
+                      {prompt.question}
+                    </p>
+                    {prompt.quote && (
+                      <p className="hand mt-1 text-[15px]" style={{ color: 'rgb(var(--ink-soft) / .75)' }}>
+                        you wrote: “{prompt.quote}”
+                      </p>
+                    )}
+                    <p className="mt-1 text-[11px] italic" style={{ color: 'rgb(var(--ink-soft) / .8)' }}>
+                      {prompt.context}
+                    </p>
+                  </div>
+                ))}
+                <button className="page-tool" onClick={() => setIsSettingsOpen(true)}>
+                  invite someone to write the other half
+                </button>
+              </div>
+            </>
           )}
 
-          <PrivatePanel />
-          <button className="btn-ghost self-start" onClick={() => setScene('timeline')}>
-            ← back to the shelf
-          </button>
-        </aside>
+          {neighbours.next && !privateOpen && (
+            <button className="page-label absolute bottom-3 right-24 hover:underline"
+                    onClick={() => turnTo(neighbours.next.id)}>
+              {neighbours.next.date.slice(5)} ›
+            </button>
+          )}
+
+          <button
+            className="dogear"
+            data-open={privateOpen}
+            aria-label={privateOpen ? 'close your private page' : 'open your private page'}
+            title={privateOpen ? 'fold it back' : 'your private page'}
+            onClick={() => { audioEngine.playPageTurn(); setPrivateOpen((open) => !open); }}
+          />
+        </section>
       </div>
     </div>
   );
@@ -256,22 +288,21 @@ function Attachments({ items }: { items: MediaAttachment[] }) {
     <div className="mt-4 flex flex-wrap gap-3">
       {items.map((item) =>
         item.type === 'image' ? (
-          <figure key={item.id} className="w-32">
-            <img src={item.url} alt={item.caption ?? ''} className="h-24 w-32 rounded-xl object-cover ring-1 ring-white/10" />
-            <figcaption className="mt-1 text-[10px] leading-tight text-white/35">{item.caption}</figcaption>
+          <figure key={item.id} className="w-28 -rotate-1">
+            <img src={item.url} alt={item.caption ?? ''}
+                 className="h-20 w-28 object-cover shadow-md"
+                 style={{ border: '4px solid rgb(255 253 246)' }} />
           </figure>
         ) : item.type === 'audio' && item.url.startsWith('data:') ? (
-          <audio key={item.id} controls src={item.url} className="h-9 w-56" />
-        ) : (
-          <span key={item.id} className="btn-ghost">{item.caption ?? item.locationName}</span>
-        )
+          <audio key={item.id} controls src={item.url} className="h-8 w-52" />
+        ) : null
       )}
     </div>
   );
 }
 
-/** The private half: sealed behind its own passphrase, its own key, its own time. */
-function PrivatePanel() {
+/** The page nobody else will ever read — behind its own passphrase, on paper. */
+function PrivatePage({ onClose }: { onClose: () => void }) {
   const {
     currentUser, isPrivateUnlocked, unlockPrivate, lockPrivate, privateError,
     addPrivateReflection, userReflections, readReflection, isReflectionOpen, activeChapter,
@@ -283,9 +314,8 @@ function PrivatePanel() {
   const [topic, setTopic] = useState('');
   const [lock, setLock] = useState<TimeLockDuration>('immediate');
   const [burning, setBurning] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
 
-  const todaysPrivate = useMemo(
+  const todays = useMemo(
     () => userReflections.filter((r) => r.chapterDate === activeChapter?.date),
     [userReflections, activeChapter?.date]
   );
@@ -294,15 +324,15 @@ function PrivatePanel() {
 
   if (!isPrivateUnlocked) {
     return (
-      <section className="glass rounded-3xl p-6">
-        <p className="label">Private reflection</p>
-        <h3 className="serif mt-1 text-xl text-white/90">Sealed with your own key</h3>
-        <p className="mt-2 text-[11px] leading-relaxed text-white/40">
-          Encrypted with AES-GCM under a key derived from this passphrase alone. Your partner cannot open it.
-          Neither can the diary owner. Neither can this app without you.
+      <div className="turn flex h-full flex-col">
+        <p className="page-label">your private page</p>
+        <h2 className="display mt-1 text-2xl" style={{ color: 'rgb(var(--ink))' }}>Sealed with your own key</h2>
+        <p className="mt-3 text-[13px] leading-relaxed" style={{ color: 'rgb(var(--ink-soft))' }}>
+          A passphrase of your own, not the one you signed in with. It never leaves this browser, so the server
+          stores words it cannot read — and a password reset can never take these pages from you.
         </p>
         <form
-          className="mt-4 flex gap-2"
+          className="mt-5 flex gap-2"
           onSubmit={async (e) => {
             e.preventDefault();
             setBusy(true);
@@ -312,94 +342,96 @@ function PrivatePanel() {
           }}
         >
           <input
-            ref={inputRef}
             type="password"
-            className="glass-quiet flex-1 rounded-full bg-transparent px-4 py-2 text-sm outline-none placeholder:text-white/25"
-            placeholder="your passphrase"
+            className="flex-1 rounded-full bg-transparent px-4 py-2 text-sm outline-none"
+            style={{ border: '1px solid rgb(var(--ink) / .3)', color: 'rgb(var(--ink))' }}
+            placeholder="your vault passphrase"
             value={passphrase}
             onChange={(e) => setPassphrase(e.target.value)}
             autoComplete="off"
           />
-          <button className="btn" disabled={busy}>{busy ? 'Opening…' : 'Unseal'}</button>
+          <button className="btn !px-4 !py-1.5 !text-xs" disabled={busy}>
+            {busy ? 'opening…' : 'unseal'}
+          </button>
         </form>
-        {privateError && <p className="mt-2 text-xs text-rose-300/80">{privateError}</p>}
-        <p className="mt-3 text-[11px] text-white/30">
-          The same passphrase you sign in with, {currentUser.name.split(' ')[0]}.
+        {privateError && <p className="mt-2 text-xs text-rose-800">{privateError}</p>}
+        <p className="mt-3 text-[11px]" style={{ color: 'rgb(var(--ink-soft) / .8)' }}>
+          Setting it for the first time? Whatever you type becomes the key. There is no recovery — that is what
+          makes it private.
         </p>
-      </section>
+        <button className="page-label mt-auto self-start hover:underline" onClick={onClose}>fold it back</button>
+      </div>
     );
   }
 
   return (
-    <section className="glass scroll-area flex-1 rounded-3xl p-6">
-      <div className="flex items-center justify-between">
-        <p className="label">Private reflection · open</p>
-        <button className="btn-ghost" onClick={lockPrivate}>Seal again</button>
+    <div className="turn flex h-full flex-col">
+      <div className="flex items-baseline justify-between">
+        <p className="page-label">your private page · open</p>
+        <button className="page-tool" onClick={lockPrivate}>seal again</button>
       </div>
 
       <textarea
-        className="paper-field mt-4 min-h-[130px]"
+        className="ink-field mt-4 min-h-[7.5rem]"
         placeholder="The part you are not ready to say out loud…"
         value={text}
         onChange={(e) => setText(e.target.value)}
         aria-label="Your private reflection"
       />
 
-      <input
-        className="glass-quiet mt-3 w-full rounded-full bg-transparent px-4 py-2 text-xs outline-none placeholder:text-white/25"
-        placeholder="give it a quiet name"
-        value={topic}
-        onChange={(e) => setTopic(e.target.value)}
-      />
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <input
+          className="flex-1 rounded-full bg-transparent px-3 py-1.5 text-xs outline-none"
+          style={{ border: '1px solid rgb(var(--ink) / .22)', color: 'rgb(var(--ink))' }}
+          placeholder="give it a quiet name"
+          value={topic}
+          onChange={(e) => setTopic(e.target.value)}
+        />
+        <select
+          className="rounded-full bg-transparent px-3 py-1.5 text-xs outline-none"
+          style={{ border: '1px solid rgb(var(--ink) / .22)', color: 'rgb(var(--ink))' }}
+          value={lock}
+          onChange={(e) => setLock(e.target.value as TimeLockDuration)}
+        >
+          {(Object.keys(LOCK_LABELS) as TimeLockDuration[]).map((key) => (
+            <option key={key} value={key}>{LOCK_LABELS[key]}</option>
+          ))}
+        </select>
+        <button
+          className="btn !px-4 !py-1.5 !text-xs"
+          disabled={!text.trim() || burning}
+          onClick={async () => {
+            setBurning(true);
+            await new Promise((r) => setTimeout(r, 600)); // the page burns before it seals
+            await addPrivateReflection(text, lock, topic);
+            setText('');
+            setTopic('');
+            setBurning(false);
+          }}
+        >
+          {burning ? 'burning…' : 'seal'}
+        </button>
+      </div>
 
-      <label className="label mt-4 block">Time lock</label>
-      <select
-        className="glass-quiet mt-1.5 w-full rounded-xl bg-transparent px-3 py-2 text-sm outline-none"
-        value={lock}
-        onChange={(e) => setLock(e.target.value as TimeLockDuration)}
-      >
-        {(Object.keys(LOCK_LABELS) as TimeLockDuration[]).map((key) => (
-          <option key={key} value={key} className="bg-neutral-900">{LOCK_LABELS[key]}</option>
-        ))}
-      </select>
+      <div className="scroll-area mt-5 flex-1 space-y-3 pr-1">
+        {todays.map((reflection) => {
+          const body = isReflectionOpen(reflection) ? readReflection(reflection.id) : null;
+          return (
+            <article key={reflection.id}>
+              <p className="page-label">{reflection.topicTag}</p>
+              {body ? (
+                <p className="ink-body text-[1.05rem] leading-8">{body}</p>
+              ) : (
+                <p className="hand text-lg" style={{ color: 'rgb(var(--ink-soft) / .8)' }}>
+                  ✦ {LOCK_LABELS[reflection.timeLockDuration].toLowerCase()}
+                </p>
+              )}
+            </article>
+          );
+        })}
+      </div>
 
-      <button
-        className="btn mt-4 w-full"
-        disabled={!text.trim() || burning}
-        onClick={async () => {
-          setBurning(true);
-          // the page burns before it seals — you watch the words leave
-          await new Promise((r) => setTimeout(r, 700));
-          await addPrivateReflection(text, lock, topic);
-          setText('');
-          setTopic('');
-          setBurning(false);
-        }}
-      >
-        {burning ? 'Burning the page…' : 'Seal this thought'}
-      </button>
-
-      {todaysPrivate.length > 0 && (
-        <div className="mt-6 space-y-3">
-          <p className="label">Today, in your own hand</p>
-          {todaysPrivate.map((reflection) => {
-            const open = isReflectionOpen(reflection);
-            const body = readReflection(reflection.id);
-            return (
-              <article key={reflection.id} className="glass-quiet rounded-2xl p-4">
-                <p className="label">{reflection.topicTag}</p>
-                {open && body ? (
-                  <p className="serif mt-1.5 leading-relaxed text-white/80">{body}</p>
-                ) : (
-                  <p className="hand mt-1.5 text-lg text-white/35">
-                    ✦ sealed — {LOCK_LABELS[reflection.timeLockDuration].toLowerCase()}
-                  </p>
-                )}
-              </article>
-            );
-          })}
-        </div>
-      )}
-    </section>
+      <button className="page-label mt-2 self-start hover:underline" onClick={onClose}>fold it back</button>
+    </div>
   );
 }

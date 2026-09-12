@@ -127,6 +127,142 @@
   .field:focus { border-color: rgb(var(--gold) / 0.55); box-shadow: 0 0 0 3px rgb(var(--gold) / 0.12); }
 }
 
+/* ----------------------------------------------------------- the spread */
+@layer components {
+  /* A real book is paper under a lamp, not a dark panel. The spread deliberately
+     inverts the app's palette: ink on vellum, lit from the gutter outward. */
+  .spread {
+    --paper: 238 229 208;
+    --paper-edge: 206 192 163;
+    --ink: 38 30 24;
+    --ink-soft: 92 76 58;
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: min(1180px, 94vw);
+    height: min(720px, 78vh);
+    border-radius: 6px 10px 10px 6px;
+    box-shadow:
+      0 50px 120px -40px rgb(0 0 0 / .95),
+      0 0 0 1px rgb(0 0 0 / .5);
+    overflow: hidden;
+    transform: perspective(2400px) rotateX(1.4deg);
+  }
+
+  .page {
+    position: relative;
+    padding: 2.6rem 2.4rem 3.4rem;
+    color: rgb(var(--ink));
+    overflow: hidden;
+    background:
+      radial-gradient(120% 90% at 50% 0%, rgb(var(--paper)) 0%, rgb(var(--paper-edge) / .75) 120%),
+      rgb(var(--paper));
+  }
+
+  /* the fibre and the age spots */
+  .page::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: .5;
+    background-image:
+      radial-gradient(circle at 18% 26%, rgb(150 110 60 / .10) 0 12px, transparent 40px),
+      radial-gradient(circle at 74% 68%, rgb(150 110 60 / .08) 0 14px, transparent 46px),
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='p'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/><feColorMatrix type='saturate' values='0'/></filter><rect width='120' height='120' filter='url(%23p)' opacity='0.35'/></svg>");
+    mix-blend-mode: multiply;
+  }
+
+  .page-left  { border-right: 1px solid rgb(var(--paper-edge) / .6); }
+  .page-right { border-left: 1px solid rgb(var(--paper-edge) / .6); }
+
+  /* the gutter: two pages meeting, with the shadow the binding casts */
+  .spread::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 132px;
+    transform: translateX(-50%);
+    pointer-events: none;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgb(60 42 28 / .10) 32%,
+      rgb(40 28 18 / .34) 49%,
+      rgb(40 28 18 / .34) 51%,
+      rgb(60 42 28 / .10) 68%,
+      transparent 100%
+    );
+  }
+
+  .ink-field {
+    @apply w-full resize-none bg-transparent outline-none;
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-size: 1.22rem;
+    line-height: 2.1rem;
+    color: rgb(var(--ink));
+    background-image: linear-gradient(rgb(var(--ink) / .09) 1px, transparent 1px);
+    background-size: 100% 2.1rem;
+    background-position: 0 2.02rem;
+  }
+  .ink-field::placeholder { color: rgb(var(--ink-soft) / .45); font-style: italic; }
+
+  .ink-body {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-size: 1.22rem;
+    line-height: 2.1rem;
+    color: rgb(var(--ink));
+    white-space: pre-wrap;
+  }
+
+  .page-label {
+    @apply text-[10px] uppercase tracking-[0.24em];
+    color: rgb(var(--ink-soft) / .75);
+  }
+
+  .page-tool {
+    @apply rounded-full px-3 py-1 text-[11px] transition;
+    border: 1px solid rgb(var(--ink) / .18);
+    color: rgb(var(--ink-soft));
+  }
+  .page-tool:hover { border-color: rgb(var(--ink) / .45); color: rgb(var(--ink)); }
+  .page-tool[data-active='true'] {
+    background: rgb(var(--ink) / .08);
+    border-color: rgb(var(--ink) / .5);
+    color: rgb(var(--ink));
+  }
+
+  /* a partner's entry that has not opened yet: present, unreadable, not hidden */
+  .sealed-text {
+    filter: blur(7px) contrast(.6);
+    user-select: none;
+    opacity: .5;
+  }
+
+  /* the corner you peel back to reach your private page */
+  .dogear {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 74px;
+    height: 74px;
+    cursor: pointer;
+    border: 0;
+    background: linear-gradient(315deg, rgb(var(--paper-edge)) 0%, rgb(var(--paper)) 55%, transparent 56%);
+    box-shadow: -6px -6px 16px -8px rgb(0 0 0 / .5);
+    transition: width .4s cubic-bezier(.16,1,.3,1), height .4s cubic-bezier(.16,1,.3,1);
+  }
+  .dogear:hover, .dogear[data-open='true'] { width: 104px; height: 104px; }
+
+  @keyframes turn-in {
+    from { opacity: 0; transform: rotateY(-14deg) translateX(24px); }
+    to   { opacity: 1; transform: none; }
+  }
+  .turn { animation: turn-in .55s cubic-bezier(.16,1,.3,1) both; transform-origin: left center; }
+}
+
 /* ------------------------------------------------------------- animation */
 @layer utilities {
   /* Content does not appear — it settles, like a page coming to rest. */

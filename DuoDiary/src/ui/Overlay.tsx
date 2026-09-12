@@ -13,7 +13,7 @@ import { InkText } from './InkText';
  * entry real selectable, screen-readable text rather than pixels in a texture.
  */
 export function Overlay() {
-  const { scene, setScene, isSignedIn, hasDiary, currentUser } = useDiary();
+  const { scene, setScene, isSignedIn, hasDiary, currentUser, isConfigured, loading } = useDiary();
 
   // Arriving inside is a moment, not a redirect: the pen writes your name once,
   // then hands you the room.
@@ -35,6 +35,15 @@ export function Overlay() {
     if (!isSignedIn && scene !== 'intro' && scene !== 'auth') setScene('intro');
     if (isSignedIn && !hasDiary && scene !== 'auth') setScene('auth');
   }, [isSignedIn, hasDiary, scene, setScene]);
+
+  if (!isConfigured) return <SetupNotice />;
+  if (loading) {
+    return (
+      <div className="pointer-events-none fixed inset-0 z-20 flex items-center justify-center">
+        <p className="label breathe">finding your pages</p>
+      </div>
+    );
+  }
 
   if (!isSignedIn) {
     return (
@@ -115,6 +124,35 @@ function RoomOverlay() {
         </p>
       )}
       <p className="label mt-8 breathe">move the mouse to look around · click the diary</p>
+    </div>
+  );
+}
+
+/**
+ * Without a backend there is nothing to sign into, so say exactly what to do
+ * rather than failing somewhere deeper with a network error.
+ */
+function SetupNotice() {
+  return (
+    <div className="pointer-events-auto fixed inset-0 z-30 flex items-center justify-center p-6">
+      <div className="glass w-full max-w-xl rounded-3xl p-8 settle">
+        <p className="label">one step left</p>
+        <h2 className="display mt-1 text-3xl text-white/95">Connect a database</h2>
+        <p className="serif mt-3 leading-relaxed text-white/60">
+          DuoDiary keeps your chapters in Supabase so two people can share a diary from two different devices.
+          It needs a project before it can hold anything.
+        </p>
+        <ol className="mt-5 space-y-2 text-sm text-white/70">
+          <li>1. Create a free project at <span className="gold">supabase.com</span>.</li>
+          <li>2. Run <code className="gold">supabase/migrations/0001_init.sql</code> in the SQL editor.</li>
+          <li>3. Copy <code className="gold">.env.example</code> to <code className="gold">.env.local</code> and paste your project URL and anon key.</li>
+          <li>4. Restart the dev server.</li>
+        </ol>
+        <p className="mt-5 text-[11px] leading-relaxed text-white/35">
+          The anon key belongs in the browser — row-level security, not secrecy, is what protects the data. Never
+          put the service_role key in this file.
+        </p>
+      </div>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { useDiary } from '../context/DiaryContext';
 import { ThemeId } from '../types/diary';
 
@@ -15,10 +15,9 @@ const SOUNDS = ['rain', 'fireplace', 'chimes', 'pen', 'off'] as const;
 export function SettingsOverlay() {
   const {
     settings, setTheme, setAmbientSound, setAmbientVolume, updateSettings, currentUser, otherUser,
-    isSolo, isOwner, transferOwnership, exportArchive, importArchive, regenerateInviteCode, leaveDiary,
+    isSolo, isOwner, transferOwnership, exportArchive, regenerateInviteCode, deleteDiary,
     setIsSettingsOpen, isSettingsOpen,
   } = useDiary();
-  const fileRef = useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState<string | null>(null);
 
   if (!isSettingsOpen || !settings || !currentUser) return null;
@@ -72,7 +71,7 @@ export function SettingsOverlay() {
                   </code>
                   <button className="btn-ghost" onClick={copyInvite}>Copy</button>
                   {isOwner && (
-                    <button className="btn-ghost" onClick={regenerateInviteCode}>New code</button>
+                    <button className="btn-ghost" onClick={() => void regenerateInviteCode()}>New code</button>
                   )}
                 </div>
               </div>
@@ -104,7 +103,7 @@ export function SettingsOverlay() {
                 type="checkbox"
                 className="mt-1 accent-amber-400"
                 checked={settings.delayedSharing}
-                onChange={(e) => updateSettings({ delayedSharing: e.target.checked })}
+                onChange={(e) => void updateSettings({ delayedSharing: e.target.checked })}
               />
               <span>
                 <span className="block text-sm text-white/85">Delayed sharing</span>
@@ -122,7 +121,7 @@ export function SettingsOverlay() {
                 min={12}
                 max={24}
                 value={settings.unlockHour}
-                onChange={(e) => updateSettings({ unlockHour: Number(e.target.value) })}
+                onChange={(e) => void updateSettings({ unlockHour: Number(e.target.value) })}
                 className="mt-2 w-full accent-amber-400"
               />
               <span className="text-xs text-white/50">
@@ -162,7 +161,7 @@ export function SettingsOverlay() {
             type="checkbox"
             className="mt-1 accent-amber-400"
             checked={settings.reducedMotion}
-            onChange={(e) => updateSettings({ reducedMotion: e.target.checked })}
+            onChange={(e) => void updateSettings({ reducedMotion: e.target.checked })}
           />
           <span>
             <span className="block text-sm text-white/85">Calmer motion</span>
@@ -180,18 +179,15 @@ export function SettingsOverlay() {
             and keep private space equally — only the owner invites, transfers, exports or deletes.
           </p>
           <div className="flex flex-wrap gap-2">
-            <button className="btn-ghost" disabled={!isOwner || isSolo} onClick={transferOwnership}>
+            <button className="btn-ghost" disabled={!isOwner || isSolo} onClick={() => void transferOwnership()}>
               Transfer to {otherUser?.name.split(' ')[0] ?? 'partner'}
             </button>
             <button className="btn-ghost" disabled={!isOwner} onClick={exportArchive}>Export archive</button>
-            <button className="btn-ghost" disabled={!isOwner} onClick={() => fileRef.current?.click()}>
-              Import archive
-            </button>
             <button
               className="btn-ghost"
               onClick={() => {
-                if (confirm('Delete this diary from this device? Chapters and sealed reflections go with it.')) {
-                  leaveDiary();
+                if (confirm('Delete this diary for both of you, permanently? Chapters and sealed reflections go with it.')) {
+                  void deleteDiary();
                   setIsSettingsOpen(false);
                 }
               }}
@@ -199,23 +195,6 @@ export function SettingsOverlay() {
               Delete this diary
             </button>
           </div>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="application/json"
-            className="hidden"
-            onChange={async (e) => {
-              const file = e.target.files?.[0];
-              if (!file) return;
-              try {
-                const ok = importArchive(JSON.parse(await file.text()));
-                setMessage(ok ? 'Archive restored.' : 'That file is not a DuoDiary archive.');
-              } catch {
-                setMessage('That file could not be read.');
-              }
-              e.target.value = '';
-            }}
-          />
           {message && <p className="text-xs text-white/55">{message}</p>}
           <p className="text-[11px] leading-relaxed text-white/35">
             Exports carry private reflections as ciphertext only. Without each member's passphrase they stay sealed

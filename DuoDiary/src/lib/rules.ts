@@ -6,11 +6,13 @@
  */
 
 import { Chapter, DiarySettings, PrivateReflection } from '../types/diary';
-import { hourOnDate } from './time';
 
-/** A chapter belonging to a past day can never be edited again. */
-export function isChapterLocked(chapter: Chapter, today: string): boolean {
-  return chapter.date < today;
+/**
+ * A chapter closes at its own local midnight and can never be edited again.
+ * Mirrors chapter_is_editable() in the schema; the database has the last word.
+ */
+export function isChapterLocked(chapter: Chapter, _today: string, now = Date.now()): boolean {
+  return now >= new Date(chapter.closesAt).getTime();
 }
 
 /**
@@ -26,9 +28,9 @@ export function isChapterRevealed(
 ): boolean {
   if (settings.memberIds.length < 2) return true;
   if (!settings.delayedSharing) return true;
-  if (chapter.date < today) return true;
-  if (settings.memberIds.every((id) => chapter.sharedEntries[id]?.isCompleted)) return true;
-  return now >= hourOnDate(chapter.date, settings.unlockHour);
+  if (now >= new Date(chapter.closesAt).getTime()) return true;
+  if (now >= new Date(chapter.unlockAt).getTime()) return true;
+  return settings.memberIds.every((id) => chapter.sharedEntries[id]?.isCompleted);
 }
 
 /**
@@ -42,7 +44,7 @@ export function canEditChapter(
   today: string,
   now = Date.now()
 ): boolean {
-  if (isChapterLocked(chapter, today)) return false;
+  if (isChapterLocked(chapter, today, now)) return false;
   if (settings.memberIds.length < 2) return true;
   return !isChapterRevealed(chapter, settings, today, now);
 }

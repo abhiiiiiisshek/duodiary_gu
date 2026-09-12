@@ -24,22 +24,37 @@ const STOPWORDS = new Set([
 ]);
 
 const EMOTION_LEXICON: Record<Emotion, string[]> = {
-  hopeful: ['hope', 'hoping', 'excited', 'looking forward', 'optimistic', 'can’t wait', "can't wait"],
-  anxious: ['anxious', 'nervous', 'worried', 'worry', 'scared', 'afraid', 'dread', 'stressed', 'uneasy'],
-  joyful: ['happy', 'joy', 'laughed', 'laughing', 'delighted', 'wonderful', 'grateful', 'beautiful'],
-  reflective: ['thinking', 'thought', 'remember', 'realised', 'realized', 'wonder', 'noticed', 'quiet'],
-  uncertain: ['confused', 'unsure', 'not sure', 'don’t know', "don't know", 'strange', 'conflicted', 'doubt'],
-  peaceful: ['calm', 'peaceful', 'settled', 'rested', 'still', 'gentle', 'soft', 'ease'],
+  hopeful: ['hope', 'hoping', 'excited', 'looking forward', 'optimistic', 'can’t wait', "can't wait", 'promising', 'fingers crossed'],
+  anxious: ['anxious', 'nervous', 'worried', 'worry', 'scared', 'afraid', 'dread', 'dreading', 'stressed', 'uneasy', 'on edge', 'panic', 'knot', 'knots', 'tense'],
+  joyful: ['happy', 'joy', 'laughed', 'laughing', 'delighted', 'wonderful', 'grateful', 'beautiful', 'glowing', 'lovely', 'warm'],
+  reflective: ['thinking', 'thought', 'remember', 'realised', 'realized', 'wonder', 'noticed', 'quiet', 'strange how', 'looking back'],
+  uncertain: ['confused', 'unsure', 'not sure', 'don’t know', "don't know", 'strange', 'conflicted', 'doubt', 'torn', 'hesitant', 'second-guessing'],
+  peaceful: ['calm', 'peaceful', 'settled', 'rested', 'still', 'gentle', 'soft', 'ease', 'unhurried', 'content'],
 };
+
+/** Words that flip the sentiment of whatever follows them within a few words. */
+const NEGATORS = /\b(not|never|hardly|barely|no longer|didn['’]?t|wasn['’]?t|isn['’]?t|couldn['’]?t)\b/;
 
 /** Cue phrases that open an unfinished story. The captured tail becomes the thread name. */
 const INTENT_CUES: { re: RegExp; category: ThreadCategory; kind: string }[] = [
-  { re: /\bi (?:hope|really hope) (?:that )?(.{4,60}?)(?:[.!?,]|$)/gi, category: 'dream', kind: 'hope' },
-  { re: /\bi (?:want|need|plan|intend) to (.{4,60}?)(?:[.!?,]|$)/gi, category: 'goal', kind: 'intention' },
-  { re: /\bi(?:'m| am) (?:nervous|worried|anxious) about (.{4,60}?)(?:[.!?,]|$)/gi, category: 'conflict', kind: 'worry' },
-  { re: /\bi should (?:really )?(.{4,60}?)(?:[.!?,]|$)/gi, category: 'goal', kind: 'unkept promise' },
-  { re: /\bi (?:keep|still) (?:meaning|wanting) to (.{4,60}?)(?:[.!?,]|$)/gi, category: 'goal', kind: 'unkept promise' },
-  { re: /\bwe (?:argued|fought|disagreed) about (.{4,60}?)(?:[.!?,]|$)/gi, category: 'conflict', kind: 'conflict' },
+  // hopes
+  { re: /\bi (?:really )?(?:hope|wish)(?: that)? (.{4,70}?)(?:[.!?,;]|$)/gi, category: 'dream', kind: 'hope' },
+  { re: /\b(?:i(?:'m| am) )?looking forward to (.{4,70}?)(?:[.!?,;]|$)/gi, category: 'dream', kind: 'hope' },
+  // intentions
+  { re: /\bi (?:want|need|plan|intend|have|mean) to (.{4,70}?)(?:[.!?,;]|$)/gi, category: 'goal', kind: 'intention' },
+  { re: /\bi(?:'m| am) going to (.{4,70}?)(?:[.!?,;]|$)/gi, category: 'goal', kind: 'intention' },
+  // worries
+  { re: /\bi(?:'m| am)? ?(?:feel |feeling )?(?:nervous|worried|anxious|stressed|uneasy) about (.{4,70}?)(?:[.!?,;]|$)/gi, category: 'conflict', kind: 'worry' },
+  { re: /\bi(?:'m| am) (?:scared|afraid|terrified) (?:of|that) (.{4,70}?)(?:[.!?,;]|$)/gi, category: 'conflict', kind: 'worry' },
+  { re: /\b(?:i(?:'m| am) )?dreading (.{4,70}?)(?:[.!?,;]|$)/gi, category: 'conflict', kind: 'worry' },
+  { re: /\bi (?:can['’]?t|cannot) stop thinking about (.{4,70}?)(?:[.!?,;]|$)/gi, category: 'conflict', kind: 'worry' },
+  // promises to yourself that keep not happening
+  { re: /\bi should (?:really )?(.{4,70}?)(?:[.!?,;]|$)/gi, category: 'goal', kind: 'unkept promise' },
+  { re: /\bi (?:keep|still) (?:meaning|wanting|trying) to (.{4,70}?)(?:[.!?,;]|$)/gi, category: 'goal', kind: 'unkept promise' },
+  { re: /\bi (?:still haven['’]?t|never got around to|meant to) (.{4,70}?)(?:[.!?,;]|$)/gi, category: 'goal', kind: 'unkept promise' },
+  // friction
+  { re: /\bwe (?:argued|fought|disagreed|fell out) (?:about|over) (.{4,70}?)(?:[.!?,;]|$)/gi, category: 'conflict', kind: 'conflict' },
+  { re: /\bi snapped at (.{4,40}?)(?:[.!?,;]|$)/gi, category: 'conflict', kind: 'conflict' },
 ];
 
 const PLACE_CUE = /\b(?:at|in|to|from) (?:the )?([A-Z][a-z]{2,}(?: [A-Z][a-z]{2,})?)/g;
@@ -90,14 +105,45 @@ export function detectEmotion(text: string): Emotion {
   const lower = text.toLowerCase();
   let best: Emotion = 'reflective';
   let bestScore = 0;
+
   (Object.keys(EMOTION_LEXICON) as Emotion[]).forEach((emotion) => {
-    const score = EMOTION_LEXICON[emotion].reduce(
-      (n, word) => n + (lower.includes(word) ? 1 : 0),
-      0
-    );
+    let score = 0;
+    for (const word of EMOTION_LEXICON[emotion]) {
+      let from = lower.indexOf(word);
+      while (from !== -1) {
+        // "I was not happy" is not happiness. Look back a few words before counting it.
+        const lead = lower.slice(Math.max(0, from - 28), from);
+        score += NEGATORS.test(lead) ? -1 : 1;
+        from = lower.indexOf(word, from + word.length);
+      }
+    }
     if (score > bestScore) { bestScore = score; best = emotion; }
   });
+
   return best;
+}
+
+/**
+ * "I met Priya. She was already there." — the second sentence is about Priya.
+ * Without this the graph loses roughly every other mention of a person, because
+ * people name someone once and then use a pronoun for the rest of the entry.
+ */
+function resolvePronouns(text: string): { person: string; sentence: string }[] {
+  const out: { person: string; sentence: string }[] = [];
+  let last: string | null = null;
+
+  for (const sentence of text.split(/(?<=[.!?])\s+|\n+/)) {
+    const named = extractPeople(sentence);
+    if (named.length) {
+      last = named[named.length - 1];
+      continue;
+    }
+    if (last && /\b(she|he|they|her|him|them|their|his|hers)\b/i.test(sentence)) {
+      out.push({ person: last, sentence: sentence.trim() });
+    }
+  }
+
+  return out;
 }
 
 export function extractSignals(text: string): ExtractedSignal[] {
@@ -107,6 +153,11 @@ export function extractSignals(text: string): ExtractedSignal[] {
 
   for (const person of extractPeople(text)) {
     signals.push({ name: person, category: 'person', kind: 'person', emotion, excerpt: firstMention(text, person) });
+  }
+
+  // A pronoun that clearly points back at someone counts as another mention.
+  for (const { person, sentence } of resolvePronouns(text)) {
+    signals.push({ name: person, category: 'person', kind: 'person', emotion, excerpt: sentence.slice(0, 180) });
   }
 
   for (const cue of INTENT_CUES) {
@@ -194,6 +245,21 @@ export interface CompanionPrompt {
   context: string;
   category: string;
   threadId?: string;
+  /** The sentence you actually wrote that this question came from. */
+  quote?: string;
+}
+
+/** The most recent thing you wrote about a thread, trimmed to a quotable length. */
+function lastWords(thread: LifeThread): string | undefined {
+  const moment = thread.keyMoments[thread.keyMoments.length - 1];
+  if (!moment) return undefined;
+  const note = moment.note.replace(/\s+/g, ' ').trim();
+  return note.length > 120 ? `${note.slice(0, 117)}…` : note;
+}
+
+/** How many separate days a thread has surfaced on — recurrence, not repetition. */
+function distinctDays(thread: LifeThread): number {
+  return new Set(thread.keyMoments.map((k) => k.date)).size;
 }
 
 /**
@@ -214,24 +280,30 @@ export function generatePrompts(
     .filter((t) => t.category === 'conflict' || t.emotionalTrajectory.at(-1) === 'anxious')
     .sort((a, b) => b.lastMentionedDate.localeCompare(a.lastMentionedDate))[0];
   if (recentWorry && daysBetween(recentWorry.lastMentionedDate, today) <= 3) {
+    const gap = daysBetween(recentWorry.lastMentionedDate, today);
     out.push({
       id: `worry-${recentWorry.id}`,
       threadId: recentWorry.id,
-      question: `Yesterday you carried some weight about ${recentWorry.name.toLowerCase()}. How did it actually turn out?`,
-      context: `Last written about on ${recentWorry.lastMentionedDate}.`,
+      question: `${gap <= 1 ? 'Yesterday' : `${gap} days ago`} you were carrying ${recentWorry.name.toLowerCase()}. How did it actually turn out?`,
+      context: `You wrote about it on ${recentWorry.lastMentionedDate}.`,
+      quote: lastWords(recentWorry),
       category: 'Unfinished Story',
     });
   }
 
+  // Someone who turns up across many separate days, not someone named three
+  // times in one paragraph. Recurrence is what makes a person a thread.
   const recurringPerson = mine
-    .filter((t) => t.category === 'person' && t.mentionCount >= 3)
-    .sort((a, b) => b.mentionCount - a.mentionCount)[0];
+    .filter((t) => t.category === 'person' && distinctDays(t) >= 3)
+    .sort((a, b) => distinctDays(b) - distinctDays(a))[0];
   if (recurringPerson) {
+    const days = distinctDays(recurringPerson);
     out.push({
       id: `person-${recurringPerson.id}`,
       threadId: recurringPerson.id,
-      question: `You've mentioned ${recurringPerson.name} ${recurringPerson.mentionCount} times now. Has ${recurringPerson.name} become an important part of your life?`,
+      question: `${recurringPerson.name} has come up on ${days} different days now. Has ${recurringPerson.name} become an important part of your life?`,
       context: `First appeared ${recurringPerson.firstMentionedDate}, most recently ${recurringPerson.lastMentionedDate}.`,
+      quote: lastWords(recurringPerson),
       category: 'Life Thread',
     });
   }
@@ -245,6 +317,7 @@ export function generatePrompts(
       threadId: dormant.id,
       question: `A while back you wrote about ${dormant.name.toLowerCase()}, and it hasn't come up since. Where did that go?`,
       context: `Untouched for ${daysBetween(dormant.lastMentionedDate, today)} days.`,
+      quote: lastWords(dormant),
       category: 'Revisited Thread',
     });
   }
@@ -260,6 +333,7 @@ export function generatePrompts(
       threadId: shifted.id,
       question: `Your feelings about ${shifted.name} seem different now than when you first wrote about it. What changed?`,
       context: `Emotional arc: ${shifted.emotionalTrajectory.join(' → ')}.`,
+      quote: lastWords(shifted),
       category: 'Contradiction',
     });
   }

@@ -199,7 +199,7 @@ export async function deleteDiary(diaryId: string) {
 export async function ensureTodayChapter(
   diaryId: string,
   unlockHour: number,
-  memberIds: string[],
+  userId: string,
   dayNumber: number
 ): Promise<void> {
   const date = todayISO();
@@ -222,10 +222,12 @@ export async function ensureTodayChapter(
     .maybeSingle();
 
   if (!chapter) return;
+  // Only your own blank page: the insert policy rightly refuses a row written on
+  // someone else's behalf, and their client creates theirs when they arrive.
   await supabase
     .from('entries')
     .upsert(
-      memberIds.map((id) => ({ chapter_id: (chapter as { id: string }).id, user_id: id })),
+      { chapter_id: (chapter as { id: string }).id, user_id: userId },
       { onConflict: 'chapter_id,user_id', ignoreDuplicates: true }
     );
 }

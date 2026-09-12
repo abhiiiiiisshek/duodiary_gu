@@ -159,21 +159,24 @@ $$;
  */
 create or replace function public.chapter_is_open(target_chapter uuid)
 returns boolean language sql security definer stable set search_path = public as $$
-  select
-    case
-      when c.id is null then false
-      when member_count(c.diary_id) < 2 then true
-      when not d.delayed_sharing then true
-      when now() >= c.closes_at then true
-      when now() >= c.unlock_at then true
-      else (
-        select count(*) filter (where e.is_completed) >= member_count(c.diary_id)
-        from entries e where e.chapter_id = c.id
-      )
-    end
-  from chapters c
-  join diaries d on d.id = c.diary_id
-  where c.id = target_chapter;
+  -- A missing chapter yields no row, and a bare select would hand the policy a
+  -- NULL. coalesce makes that case an explicit, fail-closed false.
+  select coalesce((
+    select
+      case
+        when member_count(c.diary_id) < 2 then true
+        when not d.delayed_sharing then true
+        when now() >= c.closes_at then true
+        when now() >= c.unlock_at then true
+        else (
+          select count(*) filter (where e.is_completed) >= member_count(c.diary_id)
+          from entries e where e.chapter_id = c.id
+        )
+      end
+    from chapters c
+    join diaries d on d.id = c.diary_id
+    where c.id = target_chapter
+  ), false);
 $$;
 
 /*
@@ -183,10 +186,12 @@ $$;
  */
 create or replace function public.chapter_is_editable(target_chapter uuid)
 returns boolean language sql security definer stable set search_path = public as $$
-  select c.closes_at > now()
-     and (member_count(c.diary_id) < 2 or not chapter_is_open(c.id))
-  from chapters c
-  where c.id = target_chapter;
+  select coalesce((
+    select c.closes_at > now()
+       and (member_count(c.diary_id) < 2 or not chapter_is_open(c.id))
+    from chapters c
+    where c.id = target_chapter
+  ), false);
 $$;
 
 -- ============================================================ row security
@@ -368,5 +373,13 @@ create trigger on_auth_user_created
   for each row execute function public.handle_new_user();
 
 -- Realtime: a sealed entry should appear on the other side without a refresh.
-alter publication supabase_realtime add table public.entries;
-alter publication supabase_realtime add table public.chapters;
+-- Guarded so this file also runs against a plain Postgres, which has no such
+-- publication.
+do $$
+begin
+  if exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
+    alter publication supabase_realtime add table public.entries;
+    alter publication supabase_realtime add table public.chapters;
+    alter publication supabase_realtime add table public.diary_members;
+  end if;
+end $$;

@@ -159,16 +159,19 @@ export const DiaryProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setMembers(diary.members);
 
       const names = new Map(diary.members.map((m) => [m.id, m.name]));
-      // Today's chapter is created on demand, and again after every midnight.
       const existing = await api.fetchChapters(diary.settings.id, names);
-      if (!existing.some((c) => c.date === todayISO())) {
-        await api.ensureTodayChapter(
-          diary.settings.id,
-          diary.settings.unlockHour,
-          diary.settings.memberIds,
-          (existing[existing.length - 1]?.dayNumber ?? 0) + 1
-        );
-      }
+
+      // Today's chapter, and your blank page inside it, are created on demand and
+      // again after every midnight. Both writes ignore duplicates, so running this
+      // on every load costs nothing and repairs a half-created day -- which is
+      // what you get when your partner opened the app first.
+      await api.ensureTodayChapter(
+        diary.settings.id,
+        diary.settings.unlockHour,
+        userId,
+        (existing[existing.length - 1]?.dayNumber ?? 0) + 1
+      );
+
       setChapters(await api.fetchChapters(diary.settings.id, names));
       setThreads(await api.fetchThreads(diary.settings.id, userId));
     } catch (error) {

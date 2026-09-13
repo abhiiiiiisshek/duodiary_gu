@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { Chapter, DiarySettings, PrivateReflection } from './types/diary';
 import { applyPalette } from './three/palette';
@@ -216,5 +217,54 @@ describe('one palette drives both the world and the interface', () => {
 
     applyPalette('aurora', root as unknown as HTMLElement);
     expect(set['--gold']).toBe('201 160 255');
+  });
+});
+
+/*
+ * The audit's whole point was that the quiet text was unreadable: labels at
+ * 3.6:1, placeholders at 2.0:1. Dimming a token is a one-character edit and the
+ * damage is invisible to everyone who can already read it, so the floor is
+ * asserted here rather than trusted.
+ */
+describe('every text level clears the contrast floor', () => {
+  const css = readFileSync(new URL('./index.css', import.meta.url), 'utf8');
+
+  /** `236 230 216` or `255 255 255 / 0.55` -> rgb + alpha. */
+  const token = (name: string): { rgb: number[]; a: number } => {
+    const match = css.match(new RegExp(`--${name}:\\s*([0-9]+)\\s+([0-9]+)\\s+([0-9]+)(?:\\s*/\\s*([0-9.]+))?`));
+    if (!match) throw new Error(`--${name} is not declared in index.css`);
+    return { rgb: [+match[1], +match[2], +match[3]], a: match[4] ? +match[4] : 1 };
+  };
+
+  const luminance = (rgb: number[]): number => {
+    const [r, g, b] = rgb.map((c) => {
+      const s = c / 255;
+      return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+
+  const ratioOnFog = (name: string): number => {
+    const fog = token('fog').rgb;
+    const { rgb, a } = token(name);
+    const over = rgb.map((c, i) => a * c + (1 - a) * fog[i]);
+    const [hi, lo] = [luminance(over), luminance(fog)].sort((x, y) => y - x);
+    return (hi + 0.05) / (lo + 0.05);
+  };
+
+  // 4.5:1 is WCAG AA for text this size. None of it is large enough for 3:1.
+  it.each(['text-strong', 'text-soft', 'text-faint'])('%s reads on the darkest background', (name) => {
+    expect(ratioOnFog(name)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('still fails the alphas the interface used to ship', () => {
+    // /40 was `.label`, which carried most of the functional text in the app.
+    const asAlpha = (a: number) => {
+      const fog = token('fog').rgb;
+      const over = fog.map((c) => a * 255 + (1 - a) * c);
+      return (luminance(over) + 0.05) / (luminance(fog) + 0.05);
+    };
+    expect(asAlpha(0.4)).toBeLessThan(4.5);
+    expect(asAlpha(0.25)).toBeLessThan(2.5);
   });
 });

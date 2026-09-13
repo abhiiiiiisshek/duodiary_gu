@@ -1,7 +1,8 @@
-import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { Chapter, DiarySettings, PrivateReflection } from './types/diary';
+import { readFileSync } from 'node:fs';
 import { applyPalette } from './three/palette';
+
 import { daysBetween, hourOnDate, shiftISO, toISODate, todayISO } from './lib/time';
 import { canEditChapter, isChapterLocked, isChapterRevealed, isReflectionOpen } from './lib/rules';
 import { detectEmotion, extractSignals, generatePrompts, mergeSignals } from './services/memoryGraph';

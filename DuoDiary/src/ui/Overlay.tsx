@@ -6,7 +6,9 @@ import { ChapterOverlay } from './ChapterOverlay';
 import { TimelineOverlay, ThreadsOverlay, TreeOverlay, VaultOverlay } from './PlaceOverlays';
 import { SettingsOverlay } from './SettingsOverlay';
 import { Nav } from './Nav';
+import { AdminOverlay } from './AdminOverlay';
 import { InkText } from './InkText';
+import { usePhone, useTouch } from './useMediaQuery';
 
 /**
  * The DOM layer floats over the single canvas. It is deliberately thin: the
@@ -15,6 +17,16 @@ import { InkText } from './InkText';
  */
 export function Overlay() {
   const { scene, setScene, isSignedIn, hasDiary, currentUser, isConfigured, loading } = useDiary();
+
+  // The operator's view is deliberately off the map: no button leads here for
+  // anyone but an admin, and reaching it without being one shows nothing.
+  const phone = usePhone();
+  const [hash, setHash] = useState(() => window.location.hash);
+  useEffect(() => {
+    const onHash = () => setHash(window.location.hash);
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
 
   // Arriving inside is a moment, not a redirect: the pen writes your name once,
   // then hands you the room.
@@ -54,13 +66,24 @@ export function Overlay() {
     );
   }
 
+  if (hash === '#admin') {
+    return (
+      <AdminOverlay
+        onClose={() => {
+          history.replaceState(null, '', window.location.pathname + window.location.search);
+          setHash('');
+        }}
+      />
+    );
+  }
+
   if (!hasDiary) return <OnboardOverlay />;
 
   if (!greeted) {
     return (
       <div className="pointer-events-none fixed inset-0 z-30 flex items-center justify-center">
-        <div className="w-full max-w-xl px-8">
-          <InkText size={58} duration={2.3}>{`Welcome back, ${currentUser?.name.split(' ')[0] ?? ''}`}</InkText>
+        <div className="w-full max-w-xl px-6">
+          <InkText size={phone ? 34 : 58} duration={2.3}>{`Welcome back, ${currentUser?.name.split(' ')[0] ?? ''}`}</InkText>
         </div>
       </div>
     );
@@ -85,6 +108,8 @@ function RoomOverlay() {
     settings, currentUser, otherUser, todayChapter, isChapterRevealed, isSolo,
     setScene, setActiveChapterId, setIsSettingsOpen,
   } = useDiary();
+  const phone = usePhone();
+  const touch = useTouch();
   if (!currentUser || !settings) return null;
 
   const mine = todayChapter?.sharedEntries[currentUser.id];
@@ -104,9 +129,13 @@ function RoomOverlay() {
         : 'Today has not been written yet.';
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 top-0 z-20 flex flex-col items-center pt-24 text-center">
+    <div
+      className={`pointer-events-none fixed inset-x-0 top-0 z-20 flex flex-col items-center px-5 text-center ${
+        phone ? 'pt-28' : 'pt-24'
+      }`}
+    >
       <p className="label bleed">{settings.title}</p>
-      <h2 className="display bleed mt-2 text-4xl text-white/95">
+      <h2 className="display bleed mt-2 text-3xl text-white/95 sm:text-4xl">
         Good to see you, {currentUser.name.split(' ')[0]}
       </h2>
       <p className="serif bleed mt-3 max-w-md text-white/50">{status}</p>
@@ -124,7 +153,9 @@ function RoomOverlay() {
           </button>
         </p>
       )}
-      <p className="label mt-8 breathe">move the mouse to look around · click the diary</p>
+      <p className="label mt-8 breathe">
+        {touch ? 'tap the diary · the places are along the bottom' : 'move the mouse to look around · click the diary'}
+      </p>
     </div>
   );
 }
@@ -140,7 +171,7 @@ function SetupNotice() {
 
   return (
     <div className="pointer-events-auto fixed inset-0 z-30 flex items-center justify-center p-6">
-      <div className="glass scroll-area max-h-[88vh] w-full max-w-xl rounded-3xl p-8 settle">
+      <div className="glass scroll-area max-h-[88dvh] w-full max-w-xl rounded-3xl p-6 settle sm:p-8">
         <p className="label">one step left</p>
         <h2 className="display mt-1 text-3xl text-white/95">Connect a database</h2>
         <p className="serif mt-3 leading-relaxed text-white/60">

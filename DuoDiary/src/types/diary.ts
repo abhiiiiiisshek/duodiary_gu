@@ -2,11 +2,6 @@ export type ThemeId = 'moonlit' | 'parchment' | 'rainy' | 'botanical' | 'aurora'
 
 export type UserRole = 'owner' | 'partner';
 
-export interface EncryptedBlob {
-  ciphertext: string;
-  iv: string;
-}
-
 export interface UserProfile {
   id: string;
   name: string;
@@ -15,10 +10,6 @@ export interface UserProfile {
   role: UserRole;
   joinedDate: string;
   favoriteColor?: string;
-  /** Per-user PBKDF2 salt. Public — useless without the passphrase. */
-  keySalt?: string;
-  /** Encrypted known token, used to reject a wrong passphrase without touching real entries. */
-  verifier?: EncryptedBlob;
 }
 
 export interface MediaAttachment {
@@ -69,8 +60,12 @@ export interface PrivateReflection {
   id: string;
   chapterDate: string;
   authorId: string;
-  ciphertext: string;
-  iv: string;
+  /**
+   * Stored and returned in the clear. A time lock below is a promise you make
+   * to yourself about when to reread this, not a cryptographic seal — the words
+   * are readable in the database from the moment they are written.
+   */
+  body: string;
   createdAt: string;
   timeLockDuration: TimeLockDuration;
   /** Unix ms, or null for "never" — Infinity does not survive JSON.stringify. */

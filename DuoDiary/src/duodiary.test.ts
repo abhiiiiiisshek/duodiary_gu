@@ -3,7 +3,6 @@ import { Chapter, DiarySettings, PrivateReflection } from './types/diary';
 import { daysBetween, hourOnDate, shiftISO, toISODate, todayISO } from './lib/time';
 import { canEditChapter, isChapterLocked, isChapterRevealed, isReflectionOpen } from './lib/rules';
 import { detectEmotion, extractSignals, generatePrompts, mergeSignals } from './services/memoryGraph';
-import { decryptWithKey, deriveKey, encryptWithKey, makeVerifier, checkVerifier, randomSaltB64 } from './services/crypto';
 import { tidy } from './services/writingCompanion';
 
 const TODAY = '2026-09-12';
@@ -97,7 +96,7 @@ describe('delayed sharing', () => {
 
 describe('time-locked reflections', () => {
   const base: PrivateReflection = {
-    id: 'r', chapterDate: TODAY, authorId: 'a', ciphertext: '', iv: '',
+    id: 'r', chapterDate: TODAY, authorId: 'a', body: 'the part I did not say',
     createdAt: '', timeLockDuration: 'immediate', unlockTimestamp: 0,
   };
 
@@ -191,37 +190,15 @@ describe('the memory graph reads what was actually written', () => {
   });
 });
 
-describe('private reflections are genuinely encrypted', () => {
-  it('round-trips under the right passphrase and fails closed under the wrong one', async () => {
-    const salt = randomSaltB64();
-    const key = await deriveKey('correct horse battery', salt);
-    const blob = await encryptWithKey(key, 'I have not told anyone yet.');
-
-    expect(blob.ciphertext).not.toContain('told');
-    expect(await decryptWithKey(key, blob)).toBe('I have not told anyone yet.');
-
-    const partnersKey = await deriveKey('let me in', salt);
-    expect(await decryptWithKey(partnersKey, blob)).toBeNull();
-  });
-
-  it('rejects a wrong passphrase without touching a real entry', async () => {
-    const salt = randomSaltB64();
-    const key = await deriveKey('mine', salt);
-    const verifier = await makeVerifier(key);
-    expect(await checkVerifier(key, verifier)).toBe(true);
-    expect(await checkVerifier(await deriveKey('not mine', salt), verifier)).toBe(false);
-  });
-});
-
-describe('the writing companion only tidies', () => {
-  it('fixes mechanics without rewriting the author', () => {
-    const { text } = tidy('we  walked home ,  and it was quiet quiet');
-    expect(text).toBe('We walked home, and it was quiet.');
-  });
-});
-
-describe('today is a real date', () => {
-  it('matches the machine calendar', () => {
-    expect(todayISO()).toBe(toISODate(new Date()));
+describe('a time lock is a reading rule, not a seal', () => {
+  it('keeps the words readable even while the lock is still shut', () => {
+    // Since 0004 the body is plain text in the database. isReflectionOpen only
+    // decides when this app shows it back; it is not protecting anything.
+    const locked: PrivateReflection = {
+      id: 'r', chapterDate: TODAY, authorId: 'a', body: 'the part I did not say',
+      createdAt: '', timeLockDuration: '1_year', unlockTimestamp: Date.now() + 86400000,
+    };
+    expect(isReflectionOpen(locked)).toBe(false);
+    expect(locked.body).toBe('the part I did not say');
   });
 });

@@ -33,11 +33,11 @@ export function SettingsOverlay() {
 
   return (
     <div
-      className="pointer-events-auto fixed inset-0 z-40 flex items-center justify-center bg-black/55 p-6 backdrop-blur-sm"
+      className="pointer-events-auto fixed inset-0 z-40 flex items-end justify-center bg-black/55 p-2 backdrop-blur-sm sm:items-center sm:p-6"
       onClick={() => setIsSettingsOpen(false)}
     >
       <div
-        className="glass scroll-area max-h-[86vh] w-full max-w-2xl rounded-3xl p-8 settle"
+        className="glass scroll-area max-h-[88dvh] w-full max-w-2xl rounded-3xl p-5 settle safe-b sm:p-8"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-label="Diary settings"
@@ -80,7 +80,7 @@ export function SettingsOverlay() {
 
         {/* ------------------------------------------------------ atmosphere */}
         <p className="label mt-7">Atmosphere</p>
-        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <div className="mt-3 grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:grid-cols-3">
           {THEMES.map((theme) => (
             <button
               key={theme.id}
@@ -171,6 +171,23 @@ export function SettingsOverlay() {
           </span>
         </label>
 
+        {/* --------------------------------------------------------- privacy */}
+        <p className="label mt-7">Who can read this diary</p>
+        <div className="glass-quiet mt-3 space-y-2 rounded-2xl p-4 text-[11px] leading-relaxed text-white/55">
+          <p>
+            <span className="text-white/85">The two of you.</span> A sealed entry stays invisible to the other member
+            until the chapter opens, and a private page is never shown to them at all.
+          </p>
+          <p>
+            <span className="text-white/85">Whoever runs this service.</span> Everything here — shared entries before
+            they open, and every private page — is stored as readable text and can be read by an operator. There is
+            no passphrase and no encryption standing between them and these words.
+          </p>
+          <p className="text-white/35">
+            Delete the diary and it is gone from the database, including every private page inside it.
+          </p>
+        </div>
+
         {/* ----------------------------------------------------------- owner */}
         <p className="label mt-7">Owner</p>
         <div className="mt-3 space-y-2">
@@ -186,7 +203,7 @@ export function SettingsOverlay() {
             <button
               className="btn-ghost"
               onClick={() => {
-                if (confirm('Delete this diary for both of you, permanently? Chapters and sealed reflections go with it.')) {
+                if (confirm('Delete this diary for both of you, permanently? Chapters and private pages go with it.')) {
                   void deleteDiary();
                   setIsSettingsOpen(false);
                 }
@@ -197,8 +214,8 @@ export function SettingsOverlay() {
           </div>
           {message && <p className="text-xs text-white/55">{message}</p>}
           <p className="text-[11px] leading-relaxed text-white/35">
-            Exports carry private reflections as ciphertext only. Without each member's passphrase they stay sealed
-            even inside the backup file.
+            Exports carry private pages in full, as readable text. The file is not encrypted — keep it somewhere you
+            would be willing to keep the diary itself.
           </p>
         </div>
       </div>

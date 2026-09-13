@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useDiary } from '../context/DiaryContext';
 import { formatLongDate } from '../lib/time';
 import { LifeThread } from '../types/diary';
+import { usePhone } from './useMediaQuery';
 
 /* ------------------------------------------------------------- the shelf */
 
@@ -218,45 +219,20 @@ export function TreeOverlay() {
 
 /* ------------------------------------------------------------- the vault */
 
+/**
+ * Everything you have written on a private page. Kept out of the shared diary,
+ * stored as readable text: a time lock decides when this screen shows a piece
+ * back to you, and nothing more than that.
+ */
 export function VaultOverlay() {
-  const {
-    userReflections, isReflectionOpen, readReflection, isPrivateUnlocked, unlockPrivate,
-    privateError, currentUser,
-  } = useDiary();
-  const [passphrase, setPassphrase] = useState('');
+  const { userReflections, isReflectionOpen } = useDiary();
   const [openId, setOpenId] = useState<string | null>(null);
 
-  if (!isPrivateUnlocked) {
-    return (
-      <Panel side="right" title="The vault" subtitle="sealed reflections">
-        <p className="serif leading-relaxed text-white/55">
-          Everything in here belongs to {currentUser?.name.split(' ')[0] ?? 'you'} alone. Nothing opens without the passphrase —
-          not for the partner, not for the owner, not for anyone holding this device.
-        </p>
-        <form
-          className="mt-5 flex gap-2"
-          onSubmit={async (e) => { e.preventDefault(); await unlockPrivate(passphrase); setPassphrase(''); }}
-        >
-          <input
-            type="password"
-            className="glass-quiet flex-1 rounded-full bg-transparent px-4 py-2 text-sm outline-none placeholder:text-white/25"
-            placeholder="passphrase"
-            value={passphrase}
-            onChange={(e) => setPassphrase(e.target.value)}
-          />
-          <button className="btn">Unseal</button>
-        </form>
-        {privateError && <p className="mt-2 text-xs text-rose-300/80">{privateError}</p>}
-      </Panel>
-    );
-  }
-
   return (
-    <Panel side="right" title="The vault" subtitle={`${userReflections.length} reflections`}>
+    <Panel side="right" title="Your pages" subtitle={`${userReflections.length} kept`}>
       <div className="scroll-area max-h-[60vh] space-y-2 pr-1 stagger">
         {userReflections.map((reflection) => {
-          const open = isReflectionOpen(reflection);
-          const body = readReflection(reflection.id);
+          const due = isReflectionOpen(reflection);
           const showing = openId === reflection.id;
           return (
             <article key={reflection.id} className="glass-quiet rounded-2xl p-4">
@@ -267,23 +243,30 @@ export function VaultOverlay() {
                 <span className="serif text-white/90">{reflection.topicTag}</span>
                 <span className="label shrink-0">{reflection.chapterDate}</span>
               </button>
-              {showing &&
-                (open && body ? (
-                  <p className="serif mt-2 whitespace-pre-wrap leading-relaxed text-white/75 bleed">{body}</p>
-                ) : (
-                  <p className="hand mt-2 text-lg text-white/40">
-                    {reflection.unlockTimestamp === null
-                      ? 'Written, then let go. This one never opens.'
-                      : `Opens ${new Date(reflection.unlockTimestamp).toLocaleDateString()} · ${countdown(reflection.unlockTimestamp)}`}
+              {showing && (
+                <>
+                  {!due && (
+                    <p className="hand mt-2 text-lg text-white/40">
+                      {reflection.unlockTimestamp === null
+                        ? 'You asked not to be shown this one again.'
+                        : `You set this aside until ${new Date(reflection.unlockTimestamp).toLocaleDateString()} · ${countdown(reflection.unlockTimestamp)}`}
+                    </p>
+                  )}
+                  <p className="serif mt-2 whitespace-pre-wrap leading-relaxed text-white/75 bleed">
+                    {reflection.body}
                   </p>
-                ))}
+                </>
+              )}
             </article>
           );
         })}
         {userReflections.length === 0 && (
-          <p className="serif italic text-white/40">Nothing sealed yet. Write something today only you will read.</p>
+          <p className="serif italic text-white/40">Nothing kept yet. Write something today only you will read.</p>
         )}
       </div>
+      <p className="mt-4 text-[11px] leading-relaxed text-white/35">
+        These are stored as ordinary text. Whoever runs this service can read them.
+      </p>
     </Panel>
   );
 }
@@ -306,6 +289,23 @@ function Panel({
   subtitle: string;
   children: React.ReactNode;
 }) {
+  const phone = usePhone();
+
+  // On a phone there is no "beside the world" to sit in, so the panel becomes a
+  // sheet resting on the bottom edge, clear of the navigation bar.
+  if (phone) {
+    return (
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 px-2 pb-[5.5rem] safe-b">
+        <section className="glass pointer-events-auto max-h-[68dvh] overflow-y-auto rounded-3xl p-5 settle">
+          <p className="label">{subtitle}</p>
+          <h2 className="display mt-1 text-2xl text-white/95">{title}</h2>
+          <div className="rule my-4" />
+          {children}
+        </section>
+      </div>
+    );
+  }
+
   return (
     <div
       className={`pointer-events-none fixed inset-y-0 z-20 flex items-center px-6 ${

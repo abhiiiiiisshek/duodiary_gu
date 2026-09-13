@@ -5,6 +5,7 @@ import { formatLongDate } from '../lib/time';
 import { MOODS, tidy, wordCount } from '../services/writingCompanion';
 import { audioEngine } from '../services/audioEngine';
 import { useRecorder } from './useRecorder';
+import { usePhone } from './useMediaQuery';
 
 const LOCK_LABELS: Record<TimeLockDuration, string> = {
   immediate: 'Readable now',
@@ -37,6 +38,13 @@ export function ChapterOverlay() {
   const [note, setNote] = useState<string | null>(null);
   const [privateOpen, setPrivateOpen] = useState(false);
   const recorder = useRecorder();
+
+  // A phone shows one page at a time. Two pages across 375px gives each of them
+  // about twenty characters a line, which is not reading.
+  const phone = usePhone();
+  const [face, setFace] = useState<'mine' | 'theirs'>('mine');
+  const showLeft = !phone || (face === 'mine' && !privateOpen);
+  const showRight = !phone || face === 'theirs' || privateOpen;
 
   useEffect(() => { setDraft(mine?.text ?? ''); }, [activeChapter?.id, mine?.text]);
 
@@ -80,12 +88,51 @@ export function ChapterOverlay() {
     audioEngine.playPageTurn();
     setActiveChapterId(id);
     setPrivateOpen(false);
+    setFace('mine');
   };
 
+  const partnerTab = otherUser ? otherUser.name.split(' ')[0] : 'the diary';
+
   return (
-    <div className="pointer-events-none fixed inset-0 z-20 flex items-center justify-center px-4 pb-24 pt-16">
-      <div className="spread pointer-events-auto settle" key={activeChapter.id}>
+    <div
+      className={
+        phone
+          ? 'pointer-events-none fixed inset-0 z-20 flex flex-col gap-2 px-2 pb-[5.5rem] pt-3 safe-b'
+          : 'pointer-events-none fixed inset-0 z-20 flex items-center justify-center px-4 pb-24 pt-16'
+      }
+    >
+      {phone && (
+        <div className="pointer-events-auto flex shrink-0 justify-center gap-1.5" role="tablist">
+          <button
+            className="btn-ghost !px-3 !text-[10px]"
+            data-active={showLeft}
+            onClick={() => { setPrivateOpen(false); setFace('mine'); }}
+          >
+            you
+          </button>
+          <button
+            className="btn-ghost !px-3 !text-[10px]"
+            data-active={face === 'theirs' && !privateOpen}
+            onClick={() => { setPrivateOpen(false); setFace('theirs'); }}
+          >
+            {partnerTab}
+          </button>
+          <button
+            className="btn-ghost !px-3 !text-[10px]"
+            data-active={privateOpen}
+            onClick={() => { audioEngine.playPageTurn(); setPrivateOpen(true); }}
+          >
+            private
+          </button>
+        </div>
+      )}
+
+      <div
+        className={`spread pointer-events-auto settle${phone ? ' min-h-0 flex-1' : ''}`}
+        key={activeChapter.id}
+      >
         {/* ------------------------------------------------------- left page */}
+        {showLeft && (
         <section className="page page-left turn flex flex-col">
           <header>
             <p className="page-label">{formatLongDate(activeChapter.date)}</p>
@@ -183,8 +230,10 @@ export function ChapterOverlay() {
             </button>
           )}
         </section>
+        )}
 
         {/* ------------------------------------------------------ right page */}
+        {showRight && (
         <section className="page page-right turn flex flex-col">
           {privateOpen ? (
             <PrivatePage onClose={() => setPrivateOpen(false)} />
@@ -269,14 +318,19 @@ export function ChapterOverlay() {
             </button>
           )}
 
-          <button
-            className="dogear"
-            data-open={privateOpen}
-            aria-label={privateOpen ? 'close your private page' : 'open your private page'}
-            title={privateOpen ? 'fold it back' : 'your private page'}
-            onClick={() => { audioEngine.playPageTurn(); setPrivateOpen((open) => !open); }}
-          />
+          {/* On a phone the tab row above does this job, and a 54px corner over
+              the text would sit exactly where a thumb rests. */}
+          {!phone && (
+            <button
+              className="dogear"
+              data-open={privateOpen}
+              aria-label={privateOpen ? 'close your private page' : 'open your private page'}
+              title={privateOpen ? 'fold it back' : 'your private page'}
+              onClick={() => { audioEngine.playPageTurn(); setPrivateOpen((open) => !open); }}
+            />
+          )}
         </section>
+        )}
       </div>
     </div>
   );
@@ -301,19 +355,20 @@ function Attachments({ items }: { items: MediaAttachment[] }) {
   );
 }
 
-/** The page nobody else will ever read — behind its own passphrase, on paper. */
+/**
+ * Your own page. Only you see it in this app — but it is stored as readable
+ * text, so an operator of this service can read it, and the notice below says
+ * so rather than letting the word "private" carry a promise it cannot keep.
+ */
 function PrivatePage({ onClose }: { onClose: () => void }) {
   const {
-    currentUser, isPrivateUnlocked, unlockPrivate, lockPrivate, privateError,
-    addPrivateReflection, userReflections, readReflection, isReflectionOpen, activeChapter,
+    currentUser, privateError, addPrivateReflection, userReflections, activeChapter,
   } = useDiary();
 
-  const [passphrase, setPassphrase] = useState('');
-  const [busy, setBusy] = useState(false);
   const [text, setText] = useState('');
   const [topic, setTopic] = useState('');
   const [lock, setLock] = useState<TimeLockDuration>('immediate');
-  const [burning, setBurning] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const todays = useMemo(
     () => userReflections.filter((r) => r.chapterDate === activeChapter?.date),
@@ -322,53 +377,11 @@ function PrivatePage({ onClose }: { onClose: () => void }) {
 
   if (!currentUser || !activeChapter) return null;
 
-  if (!isPrivateUnlocked) {
-    return (
-      <div className="turn flex h-full flex-col">
-        <p className="page-label">your private page</p>
-        <h2 className="display mt-1 text-2xl" style={{ color: 'rgb(var(--ink))' }}>Sealed with your own key</h2>
-        <p className="mt-3 text-[13px] leading-relaxed" style={{ color: 'rgb(var(--ink-soft))' }}>
-          A passphrase of your own, not the one you signed in with. It never leaves this browser, so the server
-          stores words it cannot read — and a password reset can never take these pages from you.
-        </p>
-        <form
-          className="mt-5 flex gap-2"
-          onSubmit={async (e) => {
-            e.preventDefault();
-            setBusy(true);
-            await unlockPrivate(passphrase);
-            setBusy(false);
-            setPassphrase('');
-          }}
-        >
-          <input
-            type="password"
-            className="flex-1 rounded-full bg-transparent px-4 py-2 text-sm outline-none"
-            style={{ border: '1px solid rgb(var(--ink) / .3)', color: 'rgb(var(--ink))' }}
-            placeholder="your vault passphrase"
-            value={passphrase}
-            onChange={(e) => setPassphrase(e.target.value)}
-            autoComplete="off"
-          />
-          <button className="btn !px-4 !py-1.5 !text-xs" disabled={busy}>
-            {busy ? 'opening…' : 'unseal'}
-          </button>
-        </form>
-        {privateError && <p className="mt-2 text-xs text-rose-800">{privateError}</p>}
-        <p className="mt-3 text-[11px]" style={{ color: 'rgb(var(--ink-soft) / .8)' }}>
-          Setting it for the first time? Whatever you type becomes the key. There is no recovery — that is what
-          makes it private.
-        </p>
-        <button className="page-label mt-auto self-start hover:underline" onClick={onClose}>fold it back</button>
-      </div>
-    );
-  }
-
   return (
     <div className="turn flex h-full flex-col">
-      <div className="flex items-baseline justify-between">
-        <p className="page-label">your private page · open</p>
-        <button className="page-tool" onClick={lockPrivate}>seal again</button>
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="page-label">your private page</p>
+        <p className="page-label shrink-0">not shown to your partner</p>
       </div>
 
       <textarea
@@ -381,7 +394,7 @@ function PrivatePage({ onClose }: { onClose: () => void }) {
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <input
-          className="flex-1 rounded-full bg-transparent px-3 py-1.5 text-xs outline-none"
+          className="min-w-[8rem] flex-1 rounded-full bg-transparent px-3 py-1.5 text-xs outline-none"
           style={{ border: '1px solid rgb(var(--ink) / .22)', color: 'rgb(var(--ink))' }}
           placeholder="give it a quiet name"
           value={topic}
@@ -399,36 +412,38 @@ function PrivatePage({ onClose }: { onClose: () => void }) {
         </select>
         <button
           className="btn !px-4 !py-1.5 !text-xs"
-          disabled={!text.trim() || burning}
+          disabled={!text.trim() || saving}
           onClick={async () => {
-            setBurning(true);
-            await new Promise((r) => setTimeout(r, 600)); // the page burns before it seals
+            setSaving(true);
             await addPrivateReflection(text, lock, topic);
             setText('');
             setTopic('');
-            setBurning(false);
+            setSaving(false);
           }}
         >
-          {burning ? 'burning…' : 'seal'}
+          {saving ? 'keeping…' : 'keep it'}
         </button>
       </div>
 
-      <div className="scroll-area mt-5 flex-1 space-y-3 pr-1">
-        {todays.map((reflection) => {
-          const body = isReflectionOpen(reflection) ? readReflection(reflection.id) : null;
-          return (
-            <article key={reflection.id}>
-              <p className="page-label">{reflection.topicTag}</p>
-              {body ? (
-                <p className="ink-body text-[1.05rem] leading-8">{body}</p>
-              ) : (
-                <p className="hand text-lg" style={{ color: 'rgb(var(--ink-soft) / .8)' }}>
-                  ✦ {LOCK_LABELS[reflection.timeLockDuration].toLowerCase()}
-                </p>
+      {privateError && <p className="mt-2 text-xs text-rose-800">{privateError}</p>}
+
+      <p className="mt-3 text-[11px] leading-relaxed" style={{ color: 'rgb(var(--ink-soft) / .85)' }}>
+        Kept out of the shared pages, and stored as ordinary text. Whoever runs this service can read it, and a
+        time lock only decides when this app shows it back to you — it is not a seal on the words themselves.
+      </p>
+
+      <div className="scroll-area mt-4 flex-1 space-y-3 pr-1">
+        {todays.map((reflection) => (
+          <article key={reflection.id}>
+            <p className="page-label">
+              {reflection.topicTag}
+              {reflection.timeLockDuration !== 'immediate' && (
+                <span> · {LOCK_LABELS[reflection.timeLockDuration].toLowerCase()}</span>
               )}
-            </article>
-          );
-        })}
+            </p>
+            <p className="ink-body text-[1.05rem] leading-8">{reflection.body}</p>
+          </article>
+        ))}
       </div>
 
       <button className="page-label mt-2 self-start hover:underline" onClick={onClose}>fold it back</button>

@@ -15,6 +15,7 @@ import { Bookshelf } from './objects/Bookshelf';
 import { Constellation } from './objects/Constellation';
 import { MemoryTree } from './objects/MemoryTree';
 import { Vault } from './objects/Vault';
+import { usePhone, useTouch } from '../ui/useMediaQuery';
 
 /**
  * One world, one canvas. Every "page" of this app is a place inside the same
@@ -45,7 +46,15 @@ const LANDMARKS = {
   vault: [0, -8, 0] as [number, number, number],
 };
 
-function CameraRig({ scene, reducedMotion }: { scene: SceneId; reducedMotion: boolean }) {
+function CameraRig({
+  scene, reducedMotion, parallax,
+}: {
+  scene: SceneId;
+  reducedMotion: boolean;
+  /** Off on touch: there is no cursor to follow, and a stale pointer position
+   *  from one tap would leave the camera permanently off-centre. */
+  parallax: boolean;
+}) {
   const { camera } = useThree();
   const base = useRef(new THREE.Vector3(...VIEWS.intro.pos));
   const target = useRef(new THREE.Vector3(...VIEWS.intro.look));
@@ -57,13 +66,14 @@ function CameraRig({ scene, reducedMotion }: { scene: SceneId; reducedMotion: bo
   const desired = useRef(new THREE.Vector3());
 
   useEffect(() => {
+    if (!parallax) { pointer.current.x = 0; pointer.current.y = 0; return; }
     const onMove = (e: PointerEvent) => {
       pointer.current.x = (e.clientX / window.innerWidth - 0.5) * 2;
       pointer.current.y = (e.clientY / window.innerHeight - 0.5) * 2;
     };
     window.addEventListener('pointermove', onMove);
     return () => window.removeEventListener('pointermove', onMove);
-  }, []);
+  }, [parallax]);
 
   useFrame((state, delta) => {
     // The flight is a frame-rate independent damp read straight off the current
@@ -99,6 +109,7 @@ function World() {
   } = useDiary();
   const palette = paletteFor(activeTheme);
   const reducedMotion = settings?.reducedMotion ?? false;
+  const phone = usePhone();
   // The room only exists once there is a diary to sit in it.
   const isSignedIn = hasDiary;
   const [hoveredThread, setHoveredThread] = useState<string | null>(null);
@@ -138,8 +149,10 @@ function World() {
       <hemisphereLight color={palette.rim} groundColor={palette.fog} intensity={0.35} />
       <Moon palette={palette} position={[-15, 13, -34]} />
 
-      <DustField palette={palette} count={reducedMotion ? 400 : 1600} />
-      {!isSignedIn && <FloatingPages palette={palette} count={reducedMotion ? 8 : 26} />}
+      {/* A phone GPU renders every one of these as a real sprite; a sixth of
+          them reads the same at a sixth of the fill cost. */}
+      <DustField palette={palette} count={reducedMotion ? 400 : phone ? 280 : 1600} />
+      {!isSignedIn && <FloatingPages palette={palette} count={reducedMotion ? 8 : phone ? 10 : 26} />}
 
       {/* the desk and its props do not exist until you are inside */}
       {isSignedIn && <Room palette={palette} />}
@@ -216,6 +229,7 @@ function Effects() {
   const { settings, activeTheme, scene } = useDiary();
   const palette = paletteFor(activeTheme);
   const reducedMotion = settings?.reducedMotion ?? false;
+  const phone = usePhone();
   // Focus on whatever the camera is actually pointed at, in world units — the
   // normalized focusDistance is meaningless once near/far are tuned per project.
   const view = VIEWS[scene];
@@ -225,10 +239,21 @@ function Effects() {
     view.pos[2] - view.look[2]
   );
 
+  // Depth of field is the most expensive pass here and the least visible on a
+  // small screen, so a phone keeps the bloom and drops the blur.
   if (reducedMotion) {
     return (
       <EffectComposer>
         <Vignette eskil={false} offset={0.25} darkness={0.72} />
+      </EffectComposer>
+    );
+  }
+
+  if (phone) {
+    return (
+      <EffectComposer multisampling={0}>
+        <Bloom intensity={palette.bloom} luminanceThreshold={0.35} luminanceSmoothing={0.5} mipmapBlur />
+        <Vignette eskil={false} offset={0.2} darkness={0.85} />
       </EffectComposer>
     );
   }
@@ -245,12 +270,15 @@ function Effects() {
 export function Experience() {
   const { scene, settings } = useDiary();
   const reducedMotion = settings?.reducedMotion ?? false;
+  const phone = usePhone();
+  const touch = useTouch();
 
   return (
     <Canvas
       className="fixed inset-0"
-      shadows
-      dpr={[1, 1.75]}
+      // Shadow maps on a phone cost more than the one soft shadow they buy.
+      shadows={!phone}
+      dpr={phone ? [1, 1.4] : [1, 1.75]}
       gl={{ antialias: false, powerPreference: 'high-performance' }}
       camera={{ position: VIEWS.intro.pos, fov: 42, near: 0.1, far: 120 }}
       onCreated={({ gl }) => {
@@ -263,7 +291,7 @@ export function Experience() {
         <Effects />
         <Preload all />
       </Suspense>
-      <CameraRig scene={scene} reducedMotion={reducedMotion} />
+      <CameraRig scene={scene} reducedMotion={reducedMotion} parallax={!touch} />
       <AdaptiveDpr pixelated={false} />
     </Canvas>
   );

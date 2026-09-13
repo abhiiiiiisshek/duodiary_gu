@@ -128,19 +128,26 @@ check("A can no longer edit once the chapter has opened", out == [] or st >= 400
 st, still = call("GET", f"/rest/v1/entries?chapter_id=eq.{cid}&user_id=eq.{a_id}&select=body", a_tok)
 check("and the original words are untouched", still and still[0]["body"] == SECRET)
 
-print("\n== private reflections ==")
+print("\n== private pages ==")
 call("POST", "/rest/v1/reflections", a_tok, {
     "diary_id": did, "user_id": a_id, "chapter_date": now.strftime("%Y-%m-%d"),
-    "ciphertext": "OPAQUE-CIPHERTEXT", "iv": "iv", "topic_tag": "Kyoto",
+    "body": "the part I did not say out loud", "topic_tag": "Kyoto",
 })
 st, rows = call("GET", f"/rest/v1/reflections?diary_id=eq.{did}&select=*", b_tok)
-check("B cannot read A's private reflections at all", rows == [], rows)
+check("B cannot read A's private pages at all", rows == [], rows)
 
 st, out = call("POST", "/rest/v1/reflections", b_tok, {
     "diary_id": did, "user_id": a_id, "chapter_date": now.strftime("%Y-%m-%d"),
-    "ciphertext": "forged", "iv": "iv",
+    "body": "forged",
 }, prefer="return=representation")
 check("nor forge one in A's name", st >= 400, out)
+
+print("\n== the admin table ==")
+st, out = call("POST", "/rest/v1/admins", a_tok, {"user_id": a_id, "note": "self-promotion"},
+               prefer="return=representation")
+check("an ordinary account cannot make itself an admin", st >= 400, out)
+st, rows = call("GET", "/rest/v1/admins?select=user_id", a_tok)
+check("and sees no admin rows", rows == [], rows)
 
 print("\n== ownership ==")
 st, out = call("POST", "/rest/v1/rpc/transfer_ownership", b_tok, {"target_diary": did})

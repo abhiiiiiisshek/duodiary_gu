@@ -13,7 +13,9 @@
     --edge: 255 255 255;
   }
 
-  html, body, #root { height: 100%; }
+  /* dvh, so the iOS toolbar sliding away does not leave a dead strip or push
+     the bottom navigation off the screen. */
+  html, body, #root { height: 100dvh; }
 
   body {
     margin: 0;
@@ -323,3 +325,59 @@
     transition-duration: .01ms !important;
   }
 }
+
+
+/* ------------------------------------------------------------------ phone */
+/*
+ * One breakpoint, 860px, matching usePhone() in src/ui/useMediaQuery.ts. Below
+ * it the book stops being a two-page spread -- a 375px-wide phone showing two
+ * pages gives each of them 24 characters a line, which is not reading.
+ */
+
+@media (max-width: 860px) {
+  .spread {
+    grid-template-columns: 1fr;
+    width: 100%;
+    height: auto;                    /* the flex parent sizes it, not a fixed box */
+    min-height: 0;
+    border-radius: 10px;
+    transform: none;                 /* the perspective tilt costs legibility here */
+    box-shadow: 0 20px 60px -30px rgb(0 0 0 / .9), 0 0 0 1px rgb(0 0 0 / .5);
+  }
+
+  /* no binding, because there is no second page beside it */
+  .spread::after { display: none; }
+  .page-left, .page-right { border: 0; }
+
+  .page { padding: 1.5rem 1.25rem 4.5rem; }
+
+  .ink-field, .ink-body { font-size: 1.12rem; line-height: 1.95rem; }
+  .ink-field { background-size: 100% 1.95rem; background-position: 0 1.87rem; }
+
+  .dogear { width: 54px; height: 54px; }
+  .dogear:hover, .dogear[data-open='true'] { width: 72px; height: 72px; }
+}
+
+/* Touch, rather than width: a small window on a desktop still has a mouse. */
+@media (pointer: coarse) {
+  /* iOS zooms the whole page when a focused field is under 16px. Every writing
+     surface therefore starts at 16px, whatever the design says. */
+  input, select, textarea { font-size: max(16px, 1em); }
+
+  /* 44px is the smallest target most thumbs hit reliably. */
+  .btn-ghost { @apply px-4 py-2.5; min-height: 44px; }
+  .btn { min-height: 44px; }
+  .page-tool { @apply px-3 py-2; min-height: 38px; }
+
+  /* A 22px backdrop blur over a full-screen WebGL canvas is the single most
+     expensive thing on the page on a phone. Halve it; it still reads as glass. */
+  .glass { backdrop-filter: blur(12px) saturate(1.2); -webkit-backdrop-filter: blur(12px) saturate(1.2); }
+  .glass-quiet { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+
+  /* Hover states that latch on after a tap read as broken. */
+  .btn:hover { transform: none; box-shadow: none; }
+}
+
+/* Home indicator and notch. */
+.safe-b { padding-bottom: env(safe-area-inset-bottom); }
+.safe-t { padding-top: env(safe-area-inset-top); }

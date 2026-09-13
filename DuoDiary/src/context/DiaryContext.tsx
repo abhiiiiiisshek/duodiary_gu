@@ -1,5 +1,5 @@
 import React, {
-  createContext, useCallback, useContext, useEffect, useMemo, useRef, useState,
+  createContext, useCallback, useContext, useEffect, useMemo, useState,
 } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import {
@@ -8,8 +8,6 @@ import {
 } from '../types/diary';
 import { supabase, isConfigured, readableError } from '../services/supabase';
 import * as api from '../services/api';
-import { openVault } from '../services/vault';
-import { decryptWithKey, encryptWithKey } from '../services/crypto';
 import { extractSignals, generatePrompts, mergeSignals, CompanionPrompt } from '../services/memoryGraph';
 import { audioEngine } from '../services/audioEngine';
 import * as rules from '../lib/rules';
@@ -41,11 +39,10 @@ interface DiaryContextType {
   scene: SceneId;
   isSettingsOpen: boolean;
 
-  // private vault
-  isPrivateUnlocked: boolean;
+  // private pages
+  isAdmin: boolean;
   privateError: string | null;
   userReflections: PrivateReflection[];
-  readReflection: (id: string) => string | null;
 
   // rules
   isChapterLocked: (chapter: Chapter) => boolean;
@@ -77,8 +74,6 @@ interface DiaryContextType {
   updateSettings: (patch: Partial<DiarySettings>) => Promise<void>;
   updateSharedEntry: (text: string, mood?: string, attachments?: MediaAttachment[], location?: string) => Promise<void>;
   submitSharedEntry: () => Promise<void>;
-  unlockPrivate: (passphrase: string) => Promise<boolean>;
-  lockPrivate: () => void;
   addPrivateReflection: (text: string, lock: TimeLockDuration, topicTag?: string) => Promise<boolean>;
   addKeyMomentToThread: (threadId: string, note: string) => Promise<void>;
   exportArchive: () => void;
@@ -102,11 +97,8 @@ export const DiaryProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [activeChapterId, setActiveChapterId] = useState('');
 
-  // The vault key lives in memory only, for as long as this tab is open.
-  const vaultKey = useRef<CryptoKey | null>(null);
-  const [vaultOpen, setVaultOpen] = useState(false);
   const [privateError, setPrivateError] = useState<string | null>(null);
-  const [decrypted, setDecrypted] = useState<Record<string, string>>({});
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const userId = session?.user.id ?? null;
   const isSignedIn = Boolean(session);
@@ -151,10 +143,10 @@ export const DiaryProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   /* ------------------------------------------------------------- loading */
 
   const reload = useCallback(async () => {
-    if (!userId) { setSettings(null); setMembers([]); setChapters([]); setThreads([]); return; }
+    if (!userId) { setSettings(null); setMembers([]); setChapters([]); setThreads([]); setReflections([]); return; }
     try {
       const diary = await api.fetchMyDiary();
-      if (!diary) { setSettings(null); setMembers([]); setChapters([]); setThreads([]); return; }
+      if (!diary) { setSettings(null); setMembers([]); setChapters([]); setThreads([]); setReflections([]); return; }
 
       setSettings(diary.settings);
       setMembers(diary.members);
@@ -175,12 +167,22 @@ export const DiaryProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       setChapters(await api.fetchChapters(diary.settings.id, names));
       setThreads(await api.fetchThreads(diary.settings.id, userId));
+      setReflections(await api.fetchReflections(userId));
     } catch (error) {
       setAuthError(readableError(error));
     }
   }, [userId]);
 
   useEffect(() => { void reload(); }, [reload, today]);
+
+  // Whether this account may read every diary. The answer is the database's,
+  // not the browser's: a client that lies here still gets nothing back.
+  useEffect(() => {
+    if (!userId) { setIsAdmin(false); return; }
+    let live = true;
+    void api.amIAdmin(userId).then((yes) => { if (live) setIsAdmin(yes); });
+    return () => { live = false; };
+  }, [userId]);
 
   // A sealed entry on the other side should appear here without a refresh.
   useEffect(() => {
@@ -260,9 +262,7 @@ export const DiaryProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, []);
 
   const logOut = useCallback(async () => {
-    vaultKey.current = null;
-    setVaultOpen(false);
-    setDecrypted({});
+    setReflections([]);
     setActiveChapterId('');
     setScene('intro');
     await supabase.auth.signOut();
@@ -424,53 +424,17 @@ export const DiaryProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     await api.upsertThreads(settings.id, userId, next.filter((t) => t.id === threadId));
   }, [threads, settings, userId, currentUser, today]);
 
-  /* ----------------------------------------------------------------- vault */
+  /* -------------------------------------------------- the private page */
 
-  const lockPrivate = useCallback(() => {
-    vaultKey.current = null;
-    setVaultOpen(false);
-    setDecrypted({});
-    setPrivateError(null);
-  }, []);
-
-  useEffect(() => { lockPrivate(); }, [userId, lockPrivate]);
-
-  const unlockPrivate = useCallback(async (passphrase: string) => {
-    if (!userId) return false;
-    setPrivateError(null);
-    const result = await openVault(userId, passphrase);
-    if (result.error || !result.key) { setPrivateError(result.error ?? 'Could not open the vault.'); return false; }
-    vaultKey.current = result.key;
-    setVaultOpen(true);
-    setReflections(await api.fetchReflections(userId));
-    audioEngine.playLockSound();
-    return true;
-  }, [userId]);
-
-  // Decrypt the reflections whose hour has come, into memory, while unlocked.
-  useEffect(() => {
-    const key = vaultKey.current;
-    if (!key || !vaultOpen) return;
-    let cancelled = false;
-    (async () => {
-      const out: Record<string, string> = {};
-      for (const r of reflections) {
-        if (!rules.isReflectionOpen(r)) continue;
-        const text = await decryptWithKey(key, { ciphertext: r.ciphertext, iv: r.iv });
-        if (text !== null) out[r.id] = text;
-      }
-      if (!cancelled) setDecrypted(out);
-    })();
-    return () => { cancelled = true; };
-  }, [reflections, vaultOpen]);
-
-  const readReflection = useCallback((id: string) => decrypted[id] ?? null, [decrypted]);
-
+  /**
+   * Private reflections are stored and returned as plain text. They are shown
+   * only to their author in this app, and to an operator in the admin view --
+   * there is no passphrase and no key, so nothing here can refuse to open.
+   */
   const addPrivateReflection = useCallback(
     async (text: string, lock: TimeLockDuration, topicTag?: string) => {
-      const key = vaultKey.current;
-      if (!key || !settings || !userId || !activeChapter) {
-        setPrivateError('Unlock your private vault first.');
+      if (!settings || !userId || !activeChapter) {
+        setPrivateError('Open a chapter first.');
         return false;
       }
       if (!text.trim()) return false;
@@ -484,21 +448,24 @@ export const DiaryProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         never: null,
       };
       const offset = offsets[lock];
-      const blob = await encryptWithKey(key, text);
 
-      await api.insertReflection(settings.id, userId, {
-        chapterDate: activeChapter.date,
-        authorId: userId,
-        ciphertext: blob.ciphertext,
-        iv: blob.iv,
-        createdAt: new Date().toISOString(),
-        timeLockDuration: lock,
-        unlockTimestamp: offset === null ? null : now + offset,
-        topicTag: topicTag?.trim() || 'Personal Reflection',
-      });
+      try {
+        await api.insertReflection(settings.id, userId, {
+          chapterDate: activeChapter.date,
+          authorId: userId,
+          body: text,
+          createdAt: new Date().toISOString(),
+          timeLockDuration: lock,
+          unlockTimestamp: offset === null ? null : now + offset,
+          topicTag: topicTag?.trim() || 'Personal Reflection',
+        });
+      } catch (error) {
+        setPrivateError(readableError(error));
+        return false;
+      }
 
       setReflections(await api.fetchReflections(userId));
-      // Private writing feeds the companion too; it just never leaves your side.
+      // Private writing feeds the companion too.
       await learnFrom(text, activeChapter.date);
       audioEngine.playLockSound();
       return true;
@@ -518,7 +485,9 @@ export const DiaryProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       chapters,
       threads,
       reflections,
-      note: 'Private reflections are exported as AES-GCM ciphertext only. No passphrase, no plaintext.',
+      note:
+        'Private reflections are exported in full, as readable text. This file is not ' +
+        'encrypted — store it somewhere you would be willing to store the diary itself.',
     };
     const blob = new Blob([JSON.stringify(archive, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -534,13 +503,13 @@ export const DiaryProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     currentUser, otherUser, members, isSolo, isOwner,
     settings, chapters, threads, today, todayChapter, activeChapter, activeChapterId,
     activeTheme: settings?.theme ?? 'moonlit', scene, isSettingsOpen,
-    isPrivateUnlocked: vaultOpen, privateError, userReflections, readReflection,
+    isAdmin, privateError, userReflections,
     isChapterLocked, isChapterRevealed, canEdit, isReflectionOpen, prompts,
     createAccount, logIn, logInWithGoogle, logOut,
     createDiary, joinDiary, regenerateInviteCode, deleteDiary, transferOwnership,
     setScene, setActiveChapterId, setIsSettingsOpen, setTheme, setAmbientSound, setAmbientVolume,
     updateSettings, updateSharedEntry, submitSharedEntry,
-    unlockPrivate, lockPrivate, addPrivateReflection, addKeyMomentToThread, exportArchive,
+    addPrivateReflection, addKeyMomentToThread, exportArchive,
   };
 
   return <DiaryContext.Provider value={value}>{children}</DiaryContext.Provider>;

@@ -1,9 +1,12 @@
 # DuoDiary — a shared journal with two truths
 
 A living journal for **one or two people**. Every calendar day becomes one chapter with
-three layers: a **shared memory** both members can read, a **private reflection** only its
-author can ever open, and a **quiet companion** that remembers what you wrote before and
-asks about it later.
+three layers: a **shared memory** both members can read, a **private page** the other member
+never sees, and a **quiet companion** that remembers what you wrote before and asks about it
+later.
+
+Read [PRIVACY.md](PRIVACY.md) before writing anything here. Nothing in this app is encrypted,
+and whoever operates the instance can read every diary on it.
 
 The whole experience is a single continuous 3D world — you never change page, the camera
 moves through the room.
@@ -42,15 +45,15 @@ protects the data. The `service_role` key must never appear in this project.
 - Ownership can be handed to the other member. Only the owner can invite, transfer, export
   or delete.
 
-## Two passwords, deliberately
+## One password, and no encryption
 
-Your **login password** is Supabase's. Your **vault passphrase** is a second one you set the
-first time you open your private page, and it never leaves the browser.
+There is one password: Supabase's. There used to be a second one — a vault passphrase that
+never left the browser and made private pages unreadable to the server. It is gone, on
+purpose, because the operator of this instance needs to be able to read what is written here.
 
-They are separate on purpose: a password reset must not be able to destroy years of private
-writing, and the server must not be able to read it. The trade is real — lose the vault
-passphrase and those pages are gone, for everyone, forever. There is no recovery, because a
-recovery path is exactly what would make it readable by someone else.
+That is a real reduction in what this product promises, so the app says it out loud: on the
+sign-up screen, in Settings under **Who can read this diary**, and in the private page
+itself. See [PRIVACY.md](PRIVACY.md).
 
 ## The rules are in the database, not just the UI
 
@@ -64,7 +67,8 @@ tab. Row-level security means the row *does not come back from the query*:
 | Two independent versions of the same day | Once a chapter opens, the update policy stops accepting edits to either side |
 | Nobody waits forever | `chapter_is_open()` also returns true past the unlock hour, or once the day ends |
 | A diary is a pair, never a group | A trigger refuses a third member; `redeem_invite()` re-checks |
-| Private reflections belong to one person | `own reflections only` — and the ciphertext is useless regardless |
+| A private page is never shown to the other member | `own reflections only` — the row does not come back to them |
+| An operator can read everything | `admins` table plus the SELECT policies in `0004`. Read-only: no admin policy grants insert, update or delete |
 
 Timezones: the server cannot know what "today" means to the person writing, so each chapter
 stores its own local midnight (`closes_at`) and local unlock hour (`unlock_at`) as absolute
@@ -73,18 +77,36 @@ instants. Every rule compares against `now()`. No date arithmetic, no UTC drift.
 `src/lib/rules.ts` mirrors the same logic in the client so the interface can be honest before
 the round trip. The database has the last word.
 
-## Private truth
+## Private pages, and what they are not
 
-`src/services/crypto.ts` — AES-GCM 256 with PBKDF2-SHA256 (210 000 iterations, the OWASP
-floor).
+A private page is kept out of the shared diary and is never returned to the other member.
+It is **not** encrypted and it is **not** hidden from the operator: `reflections.body` is
+plain text in Postgres.
 
-- Plaintext is **never persisted or transmitted**. Supabase stores ciphertext and an IV.
-- The key exists only in memory, only while its owner has the vault open, and is dropped on
-  sign-out or when you seal it again.
-- **Time-locked reflections** stay encrypted until their hour: one month, one year, five
-  years, or never. `never` stores `null`, not `Infinity` — `Infinity` does not survive
-  `JSON.stringify`, and a capsule that quietly unsealed itself on reload is worse than no
-  capsule at all.
+A **time lock** — one month, one year, five years, or never — decides when this app shows a
+page back to its author. It is a reading rule, not a seal; the words are readable in the
+database from the moment they are written. `never` stores `null`, not `Infinity`, because
+`Infinity` does not survive `JSON.stringify`.
+
+## The admin view
+
+An account listed in `public.admins` can read every diary on the instance: every shared
+entry, including ones still sealed between partners, and every private page, including ones
+still inside their time lock. The screen is at **`#admin`** and appears in the navigation
+only for those accounts.
+
+Grant it from the SQL editor — there is deliberately no INSERT policy on `admins`, so no
+browser session can promote itself no matter what the client is made to send:
+
+```sql
+insert into public.admins (user_id, note)
+select id, 'why this person has access' from auth.users where email = 'you@example.com';
+```
+
+Revoke it the same way, with `delete from public.admins where user_id = '…'`.
+
+Permission lives entirely in the database. A non-admin who opens `#admin` runs exactly the
+same queries and gets back only their own diary.
 
 ## The companion, and what it honestly is
 
@@ -149,7 +171,7 @@ for motion sensitivity and for older machines.
 supabase/migrations/    schema, RLS policies, redeem_invite(), transfer_ownership()
 src/
   lib/         time.ts, rules.ts          the calendar and the promises
-  services/    supabase, api, vault, crypto, memoryGraph, writingCompanion, audioEngine
+  services/    supabase, api, memoryGraph, writingCompanion, audioEngine
   three/       Experience.tsx, palette, textures, objects/
   ui/          DOM overlay — all text stays real, selectable and screen-readable
   context/     DiaryContext.tsx           session, diary, membership, realtime
@@ -174,8 +196,9 @@ python3 scripts/verify-rules.py
 # then turn anonymous sign-ins back off
 ```
 
-Twenty checks: pairing, the invite code, a refused third member, sealing, reveal,
-immutability after opening, forged rows, private reflections, ownership transfer.
+Twenty-two checks: pairing, the invite code, a refused third member, sealing, reveal,
+immutability after opening, forged rows, private pages, self-promotion to admin, ownership
+transfer.
 It found a real bug the unit tests could not — diary creation was rejected by its
 own SELECT policy, because `insert().select()` reads the new row back before its
 first member exists.
@@ -185,3 +208,16 @@ first member exists.
 Any static host — `vercel.json` is included and `npm run build` emits `dist/`. Set
 `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` as environment variables there, and add the
 deployed origin to Supabase → Authentication → URL Configuration.
+
+## On a phone
+
+One breakpoint, 860px, shared by `src/ui/useMediaQuery.ts` and `src/index.css`.
+
+- The book stops being a two-page spread and shows one page at a time, chosen by a tab row —
+  two pages across 375px give each of them about twenty characters a line.
+- Side panels become a sheet on the bottom edge; the place navigation scrolls sideways and
+  clears the home indicator with `env(safe-area-inset-bottom)`.
+- Every input is at least 16px, because iOS zooms the whole page into a smaller one.
+- The 3D world keeps its bloom and drops depth of field, shadow maps, most of the dust, and
+  the cursor parallax — there is no cursor on a touch screen, and a stale pointer position
+  from one tap would leave the camera permanently off-centre.

@@ -27,7 +27,7 @@ export function IntroOverlay() {
   };
 
   return (
-    <div className="pointer-events-none fixed inset-0 z-20 flex flex-col items-center justify-between py-14">
+    <div className="pointer-events-none fixed inset-0 z-20 flex flex-col items-center justify-between px-5 py-10 safe-b safe-t sm:py-14">
       <header className="text-center">
         {stage >= 1 && <p className="label bleed">A living journal for one or two people</p>}
         {stage >= 1 && (
@@ -118,8 +118,8 @@ export function AuthOverlay() {
         {mode === 'signin' ? 'Open your diary' : 'Begin a diary'}
       </h2>
       <p className="mt-2 text-[11px] leading-relaxed text-white/40">
-        This password signs you in. Your private pages are sealed separately, behind a passphrase you choose once
-        inside — so resetting this password can never destroy them.
+        This password signs you in. Your writing is stored as ordinary text, which means whoever runs this service
+        can read it — including the pages the app keeps out of the shared diary. Please write here knowing that.
       </p>
 
       <form className="mt-5 space-y-3" onSubmit={submit}>
@@ -245,8 +245,8 @@ export function OnboardOverlay() {
 
 function Frame({ children }: { children: React.ReactNode }) {
   return (
-    <div className="pointer-events-none fixed inset-0 z-20 flex items-center justify-end p-6 sm:pr-16">
-      <div className="glass scroll-area pointer-events-auto max-h-[88vh] w-full max-w-lg rounded-3xl p-8 settle">
+    <div className="pointer-events-none fixed inset-0 z-20 flex items-center justify-center p-3 safe-b safe-t sm:justify-end sm:p-6 sm:pr-16">
+      <div className="glass scroll-area pointer-events-auto max-h-[90dvh] w-full max-w-lg rounded-3xl p-5 settle sm:p-8">
         {children}
       </div>
     </div>

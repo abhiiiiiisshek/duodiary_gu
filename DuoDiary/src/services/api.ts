@@ -18,8 +18,6 @@ interface ProfileRow {
   display_name: string;
   avatar: string | null;
   joined_date: string;
-  vault_salt: string | null;
-  vault_verifier: { ciphertext: string; iv: string } | null;
 }
 
 interface DiaryRow {
@@ -90,8 +88,6 @@ export function toProfile(row: ProfileRow, ownerId?: string): UserProfile {
     avatar: row.avatar || monogram(row.display_name, row.id),
     role: ownerId === row.id ? 'owner' : 'partner',
     joinedDate: row.joined_date,
-    keySalt: row.vault_salt ?? undefined,
-    verifier: row.vault_verifier ?? undefined,
   };
 }
 
@@ -318,18 +314,22 @@ export async function fetchReflections(userId: string): Promise<PrivateReflectio
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
   if (error) throw error;
+  return ((data as Record<string, unknown>[]) ?? []).map(toReflection);
+}
 
-  return ((data as Record<string, unknown>[]) ?? []).map((row) => ({
+export function toReflection(row: Record<string, unknown>): PrivateReflection {
+  return {
     id: row.id as string,
     chapterDate: row.chapter_date as string,
     authorId: row.user_id as string,
-    ciphertext: row.ciphertext as string,
-    iv: row.iv as string,
+    // Pre-0004 rows hold ciphertext nobody holds a key for. Say that, rather
+    // than rendering an empty page that looks like the person wrote nothing.
+    body: (row.body as string) || (row.ciphertext ? '[written before 2026-09-13, under a key that no longer exists]' : ''),
     createdAt: row.created_at as string,
     timeLockDuration: row.time_lock as TimeLockDuration,
     unlockTimestamp: row.unlock_at ? new Date(row.unlock_at as string).getTime() : null,
     topicTag: (row.topic_tag as string) ?? undefined,
-  }));
+  };
 }
 
 export async function insertReflection(
@@ -341,8 +341,7 @@ export async function insertReflection(
     diary_id: diaryId,
     user_id: userId,
     chapter_date: reflection.chapterDate,
-    ciphertext: reflection.ciphertext,
-    iv: reflection.iv,
+    body: reflection.body,
     topic_tag: reflection.topicTag,
     time_lock: reflection.timeLockDuration,
     unlock_at: reflection.unlockTimestamp === null ? null : new Date(reflection.unlockTimestamp).toISOString(),
@@ -395,4 +394,85 @@ export async function upsertThreads(diaryId: string, userId: string, threads: Li
     { onConflict: 'user_id,diary_id,slug' }
   );
   if (error) throw error;
+}
+
+/* ----------------------------------------------------------------- admin */
+
+/**
+ * The operator's view. Everything an admin can see is granted by the SELECT
+ * policies added in migration 0004 -- this does not use a service key, and a
+ * non-admin running exactly these queries gets back only their own diary.
+ */
+
+export interface AdminDiary {
+  settings: DiarySettings;
+  members: UserProfile[];
+  chapters: Chapter[];
+  reflections: (PrivateReflection & { authorName: string })[];
+}
+
+export async function amIAdmin(userId: string): Promise<boolean> {
+  const { data } = await supabase.from('admins').select('user_id').eq('user_id', userId).maybeSingle();
+  return Boolean(data);
+}
+
+/**
+ * Six queries for the whole instance, then grouped in memory.
+ * ponytail: loads every diary at once. Page it per diary if this ever holds
+ * more writing than a laptop can hold.
+ */
+export async function fetchEveryDiary(): Promise<AdminDiary[]> {
+  const [diaries, roster, profiles, chapters, entries, reflections] = await Promise.all([
+    supabase.from('diaries').select('*').order('created_at', { ascending: false }),
+    supabase.from('diary_members').select('diary_id,user_id'),
+    supabase.from('profiles').select('*'),
+    supabase.from('chapters').select('*').order('date', { ascending: false }),
+    supabase.from('entries').select('*'),
+    supabase.from('reflections').select('*').order('created_at', { ascending: false }),
+  ]);
+
+  const firstError = [diaries, roster, profiles, chapters, entries, reflections].find((r) => r.error)?.error;
+  if (firstError) throw firstError;
+
+  const profileRows = (profiles.data as ProfileRow[]) ?? [];
+  const names = new Map(profileRows.map((p) => [p.id, p.display_name]));
+
+  const entriesByChapter = new Map<string, EntryRow[]>();
+  ((entries.data as EntryRow[]) ?? []).forEach((row) => {
+    entriesByChapter.set(row.chapter_id, [...(entriesByChapter.get(row.chapter_id) ?? []), row]);
+  });
+
+  return ((diaries.data as DiaryRow[]) ?? []).map((diary) => {
+    const memberIds = ((roster.data as { diary_id: string; user_id: string }[]) ?? [])
+      .filter((r) => r.diary_id === diary.id)
+      .map((r) => r.user_id);
+
+    return {
+      settings: toSettings(diary, memberIds),
+      members: profileRows
+        .filter((p) => memberIds.includes(p.id))
+        .map((p) => toProfile(p, diary.owner_id))
+        .sort((a, b) => (a.role === 'owner' ? -1 : b.role === 'owner' ? 1 : 0)),
+      chapters: ((chapters.data as ChapterRow[]) ?? [])
+        .filter((c) => c.diary_id === diary.id)
+        .map((row) => ({
+          id: row.id,
+          date: row.date,
+          dayNumber: row.day_number,
+          title: row.title || `Chapter ${row.day_number}`,
+          milestoneTag: row.milestone_tag ?? undefined,
+          closesAt: row.closes_at,
+          unlockAt: row.unlock_at,
+          sharedEntries: Object.fromEntries(
+            (entriesByChapter.get(row.id) ?? []).map((entry) => [
+              entry.user_id,
+              toEntry(entry, names.get(entry.user_id) ?? 'Member'),
+            ])
+          ),
+        })),
+      reflections: ((reflections.data as Record<string, unknown>[]) ?? [])
+        .filter((r) => r.diary_id === diary.id)
+        .map((r) => ({ ...toReflection(r), authorName: names.get(r.user_id as string) ?? 'Member' })),
+    };
+  });
 }

@@ -45,7 +45,7 @@ export function SettingsOverlay() {
         <div className="flex items-start justify-between">
           <div>
             <p className="label">{isSolo ? 'a diary of one' : 'a diary of two'}</p>
-            <h2 className="display mt-1 text-3xl text-white/95">{settings.title}</h2>
+            <h2 className="display mt-1 text-3xl text-strong">{settings.title}</h2>
           </div>
           <button className="btn-ghost" onClick={() => setIsSettingsOpen(false)}>Close</button>
         </div>
@@ -60,8 +60,8 @@ export function SettingsOverlay() {
             ? <MemberRow name={otherUser.name} role={otherUser.role} email={otherUser.email} />
             : (
               <div className="glass-quiet rounded-2xl p-4">
-                <p className="serif text-white/80">The second chair is empty.</p>
-                <p className="mt-1 text-[11px] leading-relaxed text-white/45">
+                <p className="serif text-strong">The second chair is empty.</p>
+                <p className="mt-1 text-[11px] leading-relaxed text-faint">
                   Share this code with the one person you want writing the other half. They create their own account,
                   then enter the code. Until then the diary is yours alone and every chapter opens immediately.
                 </p>
@@ -79,7 +79,7 @@ export function SettingsOverlay() {
         </div>
 
         {/* ------------------------------------------------------ atmosphere */}
-        <p className="label mt-7">Atmosphere</p>
+        <p className="label mt-8">Atmosphere</p>
         <div className="mt-3 grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:grid-cols-3">
           {THEMES.map((theme) => (
             <button
@@ -88,8 +88,8 @@ export function SettingsOverlay() {
               style={settings.theme === theme.id ? { borderColor: 'rgb(var(--gold) / .6)' } : undefined}
               onClick={() => setTheme(theme.id)}
             >
-              <span className="serif block text-white/90">{theme.label}</span>
-              <span className="text-[10px] leading-tight text-white/40">{theme.blurb}</span>
+              <span className="serif block text-strong">{theme.label}</span>
+              <span className="text-[10px] leading-tight text-faint">{theme.blurb}</span>
             </button>
           ))}
         </div>
@@ -97,17 +97,17 @@ export function SettingsOverlay() {
         {/* --------------------------------------------------------- sharing */}
         {!isSolo && (
           <>
-            <p className="label mt-7">Sharing</p>
+            <p className="label mt-8">Sharing</p>
             <label className="glass-quiet mt-3 flex cursor-pointer items-start gap-3 rounded-2xl p-4">
               <input
                 type="checkbox"
-                className="mt-1 accent-amber-400"
+                className="mt-1"
                 checked={settings.delayedSharing}
                 onChange={(e) => void updateSettings({ delayedSharing: e.target.checked })}
               />
               <span>
-                <span className="block text-sm text-white/85">Delayed sharing</span>
-                <span className="text-[11px] leading-relaxed text-white/45">
+                <span className="block text-sm text-strong">Delayed sharing</span>
+                <span className="text-[11px] leading-relaxed text-faint">
                   Neither entry is visible until both of you have written, so neither version is coloured by the other.
                   Turning this off makes entries visible the moment they are sealed.
                 </span>
@@ -122,9 +122,9 @@ export function SettingsOverlay() {
                 max={24}
                 value={settings.unlockHour}
                 onChange={(e) => void updateSettings({ unlockHour: Number(e.target.value) })}
-                className="mt-2 w-full accent-amber-400"
+                className="mt-2 w-full"
               />
-              <span className="text-xs text-white/50">
+              <span className="text-xs text-faint">
                 {settings.unlockHour >= 24 ? 'midnight' : `${settings.unlockHour}:00`} — if one of you never writes
               </span>
             </label>
@@ -132,7 +132,7 @@ export function SettingsOverlay() {
         )}
 
         {/* ----------------------------------------------------------- sound */}
-        <p className="label mt-7">Sound</p>
+        <p className="label mt-8">Sound</p>
         <div className="mt-3 flex flex-wrap gap-2">
           {SOUNDS.map((sound) => (
             <button
@@ -152,46 +152,46 @@ export function SettingsOverlay() {
           step={0.05}
           value={settings.ambientVolume}
           onChange={(e) => setAmbientVolume(Number(e.target.value))}
-          className="mt-3 w-full accent-amber-400"
+          className="mt-3 w-full"
           aria-label="Ambient volume"
         />
 
         <label className="glass-quiet mt-4 flex cursor-pointer items-start gap-3 rounded-2xl p-4">
           <input
             type="checkbox"
-            className="mt-1 accent-amber-400"
+            className="mt-1"
             checked={settings.reducedMotion}
             onChange={(e) => void updateSettings({ reducedMotion: e.target.checked })}
           />
           <span>
-            <span className="block text-sm text-white/85">Calmer motion</span>
-            <span className="text-[11px] text-white/45">
+            <span className="block text-sm text-strong">Calmer motion</span>
+            <span className="text-[11px] text-faint">
               Drops depth of field, film grain, parallax and most particles. Also helps older machines.
             </span>
           </span>
         </label>
 
         {/* --------------------------------------------------------- privacy */}
-        <p className="label mt-7">Who can read this diary</p>
-        <div className="glass-quiet mt-3 space-y-2 rounded-2xl p-4 text-[11px] leading-relaxed text-white/55">
+        <p className="label mt-8">Who can read this diary</p>
+        <div className="glass-quiet mt-3 space-y-2 rounded-2xl p-4 text-[11px] leading-relaxed text-soft">
           <p>
-            <span className="text-white/85">The two of you.</span> A sealed entry stays invisible to the other member
+            <span className="text-strong">The two of you.</span> A sealed entry stays invisible to the other member
             until the chapter opens, and a private page is never shown to them at all.
           </p>
           <p>
-            <span className="text-white/85">Whoever runs this service.</span> Everything here — shared entries before
+            <span className="text-strong">Whoever runs this service.</span> Everything here — shared entries before
             they open, and every private page — is stored as readable text and can be read by an operator. There is
             no passphrase and no encryption standing between them and these words.
           </p>
-          <p className="text-white/35">
+          <p className="text-faint">
             Delete the diary and it is gone from the database, including every private page inside it.
           </p>
         </div>
 
         {/* ----------------------------------------------------------- owner */}
-        <p className="label mt-7">Owner</p>
+        <p className="label mt-8">Owner</p>
         <div className="mt-3 space-y-2">
-          <p className="text-sm text-white/60">
+          <p className="text-sm text-soft">
             Owner: <span className="gold">{isOwner ? 'you' : otherUser?.name ?? '—'}</span>. Both members write, read
             and keep private space equally — only the owner invites, transfers, exports or deletes.
           </p>
@@ -212,8 +212,8 @@ export function SettingsOverlay() {
               Delete this diary
             </button>
           </div>
-          {message && <p className="text-xs text-white/55">{message}</p>}
-          <p className="text-[11px] leading-relaxed text-white/35">
+          {message && <p className="text-xs text-soft">{message}</p>}
+          <p className="text-[11px] leading-relaxed text-faint">
             Exports carry private pages in full, as readable text. The file is not encrypted — keep it somewhere you
             would be willing to keep the diary itself.
           </p>
@@ -227,7 +227,7 @@ function MemberRow({ name, role, email, you }: { name: string; role: string; ema
   return (
     <div className="glass-quiet flex items-center justify-between gap-3 rounded-2xl p-4">
       <span>
-        <span className="serif block text-white/90">{name}{you && <span className="text-white/35"> · you</span>}</span>
+        <span className="serif block text-strong">{name}{you && <span className="text-faint"> · you</span>}</span>
         <span className="label">{role} · {email}</span>
       </span>
     </div>

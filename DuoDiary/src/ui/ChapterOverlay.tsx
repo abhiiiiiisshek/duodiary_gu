@@ -102,10 +102,11 @@ export function ChapterOverlay() {
       }
     >
       {phone && (
-        <div className="pointer-events-auto flex shrink-0 justify-center gap-1.5" role="tablist">
+        <div className="pointer-events-auto flex shrink-0 justify-center gap-1.5">
           <button
             className="btn-ghost !px-3 !text-[10px]"
             data-active={showLeft}
+            aria-pressed={showLeft}
             onClick={() => { setPrivateOpen(false); setFace('mine'); }}
           >
             you
@@ -113,6 +114,7 @@ export function ChapterOverlay() {
           <button
             className="btn-ghost !px-3 !text-[10px]"
             data-active={face === 'theirs' && !privateOpen}
+            aria-pressed={face === 'theirs' && !privateOpen}
             onClick={() => { setPrivateOpen(false); setFace('theirs'); }}
           >
             {partnerTab}
@@ -120,6 +122,7 @@ export function ChapterOverlay() {
           <button
             className="btn-ghost !px-3 !text-[10px]"
             data-active={privateOpen}
+            aria-pressed={privateOpen}
             onClick={() => { audioEngine.playPageTurn(); setPrivateOpen(true); }}
           >
             private
@@ -304,7 +307,7 @@ export function ChapterOverlay() {
                     </p>
                   </div>
                 ))}
-                <button className="page-tool" onClick={() => setIsSettingsOpen(true)}>
+                <button className="page-cta self-start" onClick={() => setIsSettingsOpen(true)}>
                   invite someone to write the other half
                 </button>
               </div>
@@ -394,15 +397,13 @@ function PrivatePage({ onClose }: { onClose: () => void }) {
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <input
-          className="min-w-[8rem] flex-1 rounded-full bg-transparent px-3 py-1.5 text-xs outline-none"
-          style={{ border: '1px solid rgb(var(--ink) / .22)', color: 'rgb(var(--ink))' }}
+          className="ink-input min-w-[8rem] flex-1"
           placeholder="give it a quiet name"
           value={topic}
           onChange={(e) => setTopic(e.target.value)}
         />
         <select
-          className="rounded-full bg-transparent px-3 py-1.5 text-xs outline-none"
-          style={{ border: '1px solid rgb(var(--ink) / .22)', color: 'rgb(var(--ink))' }}
+          className="ink-input w-auto"
           value={lock}
           onChange={(e) => setLock(e.target.value as TimeLockDuration)}
         >

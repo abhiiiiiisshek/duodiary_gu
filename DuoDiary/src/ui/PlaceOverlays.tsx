@@ -45,7 +45,7 @@ export function TimelineOverlay() {
       </div>
 
       <input
-        className="glass-quiet mt-4 w-full rounded-full bg-transparent px-4 py-2 text-sm outline-none placeholder:text-white/25"
+        className="field mt-4"
         placeholder="search these pages…"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
@@ -61,13 +61,13 @@ export function TimelineOverlay() {
               onClick={() => { setActiveChapterId(chapter.id); setScene('chapter'); }}
             >
               <div className="flex items-baseline justify-between gap-3">
-                <span className="serif text-lg text-white/90">{chapter.title}</span>
+                <span className="serif text-lg text-strong">{chapter.title}</span>
                 <span className="label shrink-0">{chapter.date}</span>
               </div>
-              <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-white/45">
+              <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-faint">
                 {chapter.sharedEntries[currentUser.id]?.text || 'You left this day blank.'}
               </p>
-              <p className="mt-2 flex gap-3 text-[10px] uppercase tracking-widest text-white/30">
+              <p className="mt-2 flex gap-3 text-[10px] uppercase tracking-widest text-faint">
                 <span>{written === 2 ? 'both wrote' : written === 1 ? 'one wrote' : 'unwritten'}</span>
                 {isChapterLocked(chapter) && <span>archived</span>}
                 {chapter.milestoneTag && <span className="gold">{chapter.milestoneTag}</span>}
@@ -75,7 +75,7 @@ export function TimelineOverlay() {
             </button>
           );
         })}
-        {visible.length === 0 && <p className="serif italic text-white/35">Nothing on this shelf matches.</p>}
+        {visible.length === 0 && <p className="serif italic text-faint">Nothing on this shelf matches.</p>}
       </div>
     </Panel>
   );
@@ -104,8 +104,8 @@ export function ThreadsOverlay() {
       {thread ? (
         <div className="mt-5 settle" key={thread.id}>
           <p className="label">{thread.category} · {thread.status} · {thread.mentionCount} mentions</p>
-          <h3 className="display mt-1 text-2xl text-white/95">{thread.name}</h3>
-          <p className="serif mt-2 text-white/60">{thread.description}</p>
+          <h3 className="display mt-1 text-2xl text-strong">{thread.name}</h3>
+          <p className="serif mt-2 text-soft">{thread.description}</p>
 
           <Trajectory thread={thread} />
 
@@ -113,7 +113,7 @@ export function ThreadsOverlay() {
             {[...thread.keyMoments].reverse().map((moment, i) => (
               <div key={i} className="glass-quiet rounded-xl p-3">
                 <p className="label">{moment.date} · {moment.authorName}</p>
-                <p className="serif mt-1 text-sm leading-relaxed text-white/75">{moment.note}</p>
+                <p className="serif mt-1 text-sm leading-relaxed text-soft">{moment.note}</p>
               </div>
             ))}
           </div>
@@ -123,7 +123,7 @@ export function ThreadsOverlay() {
             onSubmit={(e) => { e.preventDefault(); addKeyMomentToThread(thread.id, note); setNote(''); }}
           >
             <input
-              className="glass-quiet flex-1 rounded-full bg-transparent px-4 py-2 text-xs outline-none placeholder:text-white/25"
+              className="field flex-1 !py-2 !text-xs"
               placeholder="add to this thread…"
               value={note}
               onChange={(e) => setNote(e.target.value)}
@@ -132,7 +132,7 @@ export function ThreadsOverlay() {
           </form>
         </div>
       ) : (
-        <p className="serif mt-6 italic text-white/40">
+        <p className="serif mt-6 italic text-faint">
           No threads yet. They appear on their own as you write — people, places, promises you keep circling back to.
         </p>
       )}
@@ -159,7 +159,7 @@ function Trajectory({ thread }: { thread: LifeThread }) {
             {i < thread.emotionalTrajectory.length - 1 && <span className="h-px w-4 bg-white/15" />}
           </span>
         ))}
-        <span className="ml-2 text-[11px] text-white/40">
+        <span className="ml-2 text-[11px] text-faint">
           {thread.emotionalTrajectory[0]} → {thread.emotionalTrajectory[thread.emotionalTrajectory.length - 1]}
         </span>
       </div>
@@ -185,13 +185,13 @@ export function TreeOverlay() {
         ].map(([label, value]) => (
           <div key={label} className="glass-quiet rounded-2xl p-4">
             <dt className="label">{label}</dt>
-            <dd className="display mt-1 text-2xl text-white/90">{value}</dd>
+            <dd className="display mt-1 text-2xl text-strong">{value}</dd>
           </div>
         ))}
       </dl>
 
       <p className="label mt-6">What the leaves mean</p>
-      <ul className="mt-2 space-y-1.5 text-sm text-white/60">
+      <ul className="mt-2 space-y-1.5 text-sm text-soft">
         <li><span className="mr-2 inline-block h-2 w-2 rounded-full bg-[#6f9a63]" />an ordinary day</li>
         <li><span className="mr-2 inline-block h-2 w-2 rounded-full bg-[rgb(var(--accent))]" />a journey together</li>
         <li><span className="mr-2 inline-block h-2 w-2 rounded-full bg-[rgb(var(--gold))]" />a milestone</li>
@@ -201,7 +201,7 @@ export function TreeOverlay() {
       {milestones.length > 0 && (
         <>
           <p className="label mt-6">Milestones</p>
-          <ul className="mt-2 space-y-1 text-sm text-white/70">
+          <ul className="mt-2 space-y-1 text-sm text-soft">
             {milestones.map((c) => (
               <li key={c.id} className="serif">
                 <span className="gold">{c.milestoneTag}</span> · {formatLongDate(c.date)}
@@ -210,7 +210,7 @@ export function TreeOverlay() {
           </ul>
         </>
       )}
-      <p className="serif mt-6 text-sm italic leading-relaxed text-white/40">
+      <p className="serif mt-6 text-sm italic leading-relaxed text-faint">
         Click a leaf to fall back into that day.
       </p>
     </Panel>
@@ -240,19 +240,19 @@ export function VaultOverlay() {
                 className="flex w-full items-baseline justify-between gap-3 text-left"
                 onClick={() => setOpenId(showing ? null : reflection.id)}
               >
-                <span className="serif text-white/90">{reflection.topicTag}</span>
+                <span className="serif text-strong">{reflection.topicTag}</span>
                 <span className="label shrink-0">{reflection.chapterDate}</span>
               </button>
               {showing && (
                 <>
                   {!due && (
-                    <p className="hand mt-2 text-lg text-white/40">
+                    <p className="hand mt-2 text-lg text-faint">
                       {reflection.unlockTimestamp === null
                         ? 'You asked not to be shown this one again.'
                         : `You set this aside until ${new Date(reflection.unlockTimestamp).toLocaleDateString()} · ${countdown(reflection.unlockTimestamp)}`}
                     </p>
                   )}
-                  <p className="serif mt-2 whitespace-pre-wrap leading-relaxed text-white/75 bleed">
+                  <p className="serif mt-2 whitespace-pre-wrap leading-relaxed text-soft bleed">
                     {reflection.body}
                   </p>
                 </>
@@ -261,10 +261,10 @@ export function VaultOverlay() {
           );
         })}
         {userReflections.length === 0 && (
-          <p className="serif italic text-white/40">Nothing kept yet. Write something today only you will read.</p>
+          <p className="serif italic text-faint">Nothing kept yet. Write something today only you will read.</p>
         )}
       </div>
-      <p className="mt-4 text-[11px] leading-relaxed text-white/35">
+      <p className="mt-4 text-[11px] leading-relaxed text-faint">
         These are stored as ordinary text. Whoever runs this service can read them.
       </p>
     </Panel>
@@ -298,7 +298,7 @@ function Panel({
       <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 px-2 pb-nav">
         <section className="glass pointer-events-auto max-h-[68dvh] overflow-y-auto rounded-3xl p-5 settle">
           <p className="label">{subtitle}</p>
-          <h2 className="display mt-1 text-2xl text-white/95">{title}</h2>
+          <h2 className="display mt-1 text-2xl text-strong">{title}</h2>
           <div className="rule my-4" />
           {children}
         </section>
@@ -312,9 +312,9 @@ function Panel({
         side === 'left' ? 'left-0' : 'right-0'
       }`}
     >
-      <section className="glass pointer-events-auto w-[27rem] max-w-[92vw] rounded-3xl p-7 settle">
+      <section className="glass pointer-events-auto w-[27rem] max-w-[92vw] rounded-3xl p-6 settle">
         <p className="label">{subtitle}</p>
-        <h2 className="display mt-1 text-3xl text-white/95">{title}</h2>
+        <h2 className="display mt-1 text-3xl text-strong">{title}</h2>
         <div className="rule my-5" />
         {children}
       </section>

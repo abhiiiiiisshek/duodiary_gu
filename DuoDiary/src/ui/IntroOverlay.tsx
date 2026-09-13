@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useDiary } from '../context/DiaryContext';
 import { InkText } from './InkText';
 import { audioEngine } from '../services/audioEngine';
+import { useReducedMotion } from './useMediaQuery';
 
 /**
  * Scene one: darkness, then pages, then a single object worth reaching for.
@@ -9,12 +10,14 @@ import { audioEngine } from '../services/audioEngine';
  */
 export function IntroOverlay() {
   const { setScene, settings, setAmbientSound } = useDiary();
-  const [stage, setStage] = useState(0);
+  const reducedMotion = useReducedMotion();
+  const [stage, setStage] = useState(reducedMotion ? 3 : 0);
 
   useEffect(() => {
+    if (reducedMotion) { setStage(3); return; }
     const marks = [1200, 3400, 5200].map((ms, i) => window.setTimeout(() => setStage(i + 1), ms));
     return () => marks.forEach(clearTimeout);
-  }, []);
+  }, [reducedMotion]);
 
   const begin = () => {
     // Browsers only allow audio after a real gesture, so the soundscape starts here.
@@ -31,12 +34,12 @@ export function IntroOverlay() {
       <header className="text-center">
         {stage >= 1 && <p className="label bleed">A living journal for one or two people</p>}
         {stage >= 1 && (
-          <h1 className="display bleed mt-3 text-5xl font-normal tracking-tight text-white/95 sm:text-7xl">
+          <h1 className="display bleed mt-3 text-5xl font-normal tracking-tight text-strong sm:text-7xl">
             DuoDiary
           </h1>
         )}
         {stage >= 2 && (
-          <p className="serif bleed mx-auto mt-5 max-w-xl px-6 text-lg italic leading-relaxed text-white/55">
+          <p className="serif bleed mx-auto mt-5 max-w-xl px-6 text-lg italic leading-relaxed text-soft">
             The same day, remembered twice. One truth you share, one truth that stays yours.
           </p>
         )}
@@ -114,10 +117,10 @@ export function AuthOverlay() {
         <span className="h-px flex-1 bg-white/10" />
       </div>
 
-      <h2 className="display text-3xl text-white/95">
+      <h2 className="display text-3xl text-strong">
         {mode === 'signin' ? 'Open your diary' : 'Begin a diary'}
       </h2>
-      <p className="mt-2 text-[11px] leading-relaxed text-white/40">
+      <p className="mt-2 text-[11px] leading-relaxed text-faint">
         This password signs you in. Your writing is stored as ordinary text, which means whoever runs this service
         can read it — including the pages the app keeps out of the shared diary. Please write here knowing that.
       </p>
@@ -183,12 +186,12 @@ export function OnboardOverlay() {
   return (
     <Frame>
       <p className="label">Signed in as {session?.user.email}</p>
-      <h2 className="display mt-1 text-3xl text-white/95">Where will you write?</h2>
+      <h2 className="display mt-1 text-3xl text-strong">Where will you write?</h2>
 
       <div className="mt-6 space-y-3">
         <section className="glass-quiet rounded-2xl p-5">
-          <h3 className="serif text-lg text-white/90">Start your own diary</h3>
-          <p className="mt-1 text-[11px] leading-relaxed text-white/45">
+          <h3 className="serif text-lg text-strong">Start your own diary</h3>
+          <p className="mt-1 text-[11px] leading-relaxed text-faint">
             Write alone for as long as you like. You can invite one person later — or never. A solo diary opens every
             chapter immediately, since there is nobody to wait for.
           </p>
@@ -209,8 +212,8 @@ export function OnboardOverlay() {
         </section>
 
         <section className="glass-quiet rounded-2xl p-5">
-          <h3 className="serif text-lg text-white/90">Join with an invitation</h3>
-          <p className="mt-1 text-[11px] leading-relaxed text-white/45">
+          <h3 className="serif text-lg text-strong">Join with an invitation</h3>
+          <p className="mt-1 text-[11px] leading-relaxed text-faint">
             Ask the person who started the diary for their code. They can be anywhere — the invitation travels,
             not the browser.
           </p>
@@ -232,7 +235,7 @@ export function OnboardOverlay() {
       {authError && <p className="mt-3 text-xs text-rose-300/80">{authError}</p>}
 
       <button
-        className="mt-5 text-xs text-white/30 underline-offset-4 hover:text-white/70 hover:underline"
+        className="mt-5 text-xs text-faint underline-offset-4 hover:text-soft hover:underline"
         onClick={() => void logOut()}
       >
         sign out
@@ -269,7 +272,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   return (
     <label className="block">
       <span className="label">{label}</span>
-      <div className="mt-1.5">{children}</div>
+      <div className="mt-2">{children}</div>
     </label>
   );
 }

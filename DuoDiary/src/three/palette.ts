@@ -44,3 +44,25 @@ export const PALETTES: Record<ThemeId, Palette> = {
 };
 
 export const paletteFor = (theme: ThemeId): Palette => PALETTES[theme] ?? PALETTES.moonlit;
+
+/**
+ * The same palette, in the form CSS wants.
+ *
+ * These colours were defined twice -- once here for three.js, once as literals
+ * in index.css -- under the same names and with different values: gold was
+ * #D8B45A in the world and #C9A25A in the interface, and the page was a
+ * different cream from the book it was drawn on. The stylesheet now declares
+ * nothing but fallbacks, and this file is where a theme's colour lives.
+ */
+const channels = (hex: string): string => {
+  const n = parseInt(hex.replace('#', ''), 16);
+  return `${(n >> 16) & 255} ${(n >> 8) & 255} ${n & 255}`;
+};
+
+export function applyPalette(theme: ThemeId, root: HTMLElement = document.documentElement): void {
+  const palette = paletteFor(theme);
+  root.style.setProperty('--fog', channels(palette.fog));
+  root.style.setProperty('--gold', channels(palette.gold));
+  root.style.setProperty('--accent', channels(palette.accent));
+  root.style.setProperty('--paper', channels(palette.paper));
+}

@@ -42,6 +42,7 @@ export function Nav() {
               key={place.id}
               className={`btn-ghost shrink-0 snap-start${phone ? ' !px-3 !text-[10px]' : ''}`}
               data-active={scene === place.id}
+              aria-current={scene === place.id ? 'page' : undefined}
               title={place.hint}
               onClick={() => setScene(place.id)}
             >
@@ -61,7 +62,7 @@ export function Nav() {
         <div className="glass flex min-w-0 items-center gap-3 rounded-full py-1.5 pl-1.5 pr-4 text-left">
           <img src={currentUser.avatar} alt="" className="h-9 w-9 shrink-0 rounded-full object-cover ring-1 ring-white/20" />
           <span className="min-w-0 leading-tight">
-            <span className="block truncate text-xs text-white/90">{currentUser.name}</span>
+            <span className="block truncate text-xs text-strong">{currentUser.name}</span>
             <span className="label block truncate">
               {currentUser.role}
               {isSolo ? ' · writing alone' : ` · with ${otherUser?.name.split(' ')[0] ?? 'a partner'}`}

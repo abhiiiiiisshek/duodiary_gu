@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Chapter, DiarySettings, PrivateReflection } from './types/diary';
+import { applyPalette } from './three/palette';
 import { daysBetween, hourOnDate, shiftISO, toISODate, todayISO } from './lib/time';
 import { canEditChapter, isChapterLocked, isChapterRevealed, isReflectionOpen } from './lib/rules';
 import { detectEmotion, extractSignals, generatePrompts, mergeSignals } from './services/memoryGraph';
@@ -200,5 +201,20 @@ describe('a time lock is a reading rule, not a seal', () => {
     };
     expect(isReflectionOpen(locked)).toBe(false);
     expect(locked.body).toBe('the part I did not say');
+  });
+});
+
+describe('one palette drives both the world and the interface', () => {
+  it('hands CSS the same colours three.js renders', () => {
+    const set: Record<string, string> = {};
+    const root = { style: { setProperty: (k: string, v: string) => { set[k] = v; } } };
+    applyPalette('moonlit', root as unknown as HTMLElement);
+
+    // #d8b45a and #04060f, the values PALETTES.moonlit gives the renderer.
+    expect(set['--gold']).toBe('216 180 90');
+    expect(set['--fog']).toBe('4 6 15');
+
+    applyPalette('aurora', root as unknown as HTMLElement);
+    expect(set['--gold']).toBe('201 160 255');
   });
 });

@@ -60,13 +60,13 @@ export function AdminOverlay({ onClose }: { onClose: () => void }) {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="label">signed in as {currentUser?.name ?? 'an operator'}</p>
-            <h1 className="display mt-1 text-2xl text-white/95 sm:text-3xl">Every diary</h1>
+            <h1 className="display mt-1 text-2xl text-strong sm:text-3xl">Every diary</h1>
           </div>
           <button className="btn-ghost" onClick={onClose}>Leave</button>
         </div>
 
         {!isAdmin ? (
-          <p className="serif mt-8 text-white/60">
+          <p className="serif mt-8 text-soft">
             This account is not an operator. Nothing here would load anyway — the database returns only your own
             diary to anyone outside the <code className="gold">admins</code> table.
           </p>
@@ -87,7 +87,7 @@ export function AdminOverlay({ onClose }: { onClose: () => void }) {
               ].map(([label, value]) => (
                 <div key={String(label)} className="glass-quiet rounded-2xl p-3">
                   <dt className="label">{label}</dt>
-                  <dd className="display mt-1 text-xl text-white/90">{diaries ? value : '—'}</dd>
+                  <dd className="display mt-1 text-xl text-strong">{diaries ? value : '—'}</dd>
                 </div>
               ))}
             </dl>
@@ -112,7 +112,7 @@ export function AdminOverlay({ onClose }: { onClose: () => void }) {
                 />
               ))}
               {diaries && matches.length === 0 && (
-                <p className="serif italic text-white/40">Nothing on this instance matches.</p>
+                <p className="serif italic text-faint">Nothing on this instance matches.</p>
               )}
             </div>
           </>
@@ -130,7 +130,7 @@ function DiaryCard({ diary, open, onToggle }: { diary: api.AdminDiary; open: boo
     <section className="glass-quiet rounded-2xl">
       <button className="flex w-full flex-wrap items-baseline justify-between gap-2 p-4 text-left" onClick={onToggle}>
         <span className="min-w-0">
-          <span className="serif block truncate text-lg text-white/90">{settings.title}</span>
+          <span className="serif block truncate text-lg text-strong">{settings.title}</span>
           <span className="label block truncate">
             {members.map((m) => m.name).join(' · ') || 'no members'} · since {settings.createdDate}
           </span>
@@ -162,8 +162,8 @@ function DiaryCard({ diary, open, onToggle }: { diary: api.AdminDiary; open: boo
                         {member.name} · {entry?.isCompleted ? 'sealed' : 'unsealed'}
                         {entry?.mood ? ` · ${entry.mood}` : ''}
                       </p>
-                      <p className="serif mt-1 whitespace-pre-wrap text-sm leading-relaxed text-white/75">
-                        {entry?.text?.trim() || <span className="italic text-white/30">nothing written</span>}
+                      <p className="serif mt-1 whitespace-pre-wrap text-sm leading-relaxed text-soft">
+                        {entry?.text?.trim() || <span className="italic text-faint">nothing written</span>}
                       </p>
                     </div>
                   );
@@ -171,7 +171,7 @@ function DiaryCard({ diary, open, onToggle }: { diary: api.AdminDiary; open: boo
               </div>
             </article>
           ))}
-          {chapters.length === 0 && <p className="serif italic text-white/35">No chapters yet.</p>}
+          {chapters.length === 0 && <p className="serif italic text-faint">No chapters yet.</p>}
 
           {reflections.length > 0 && (
             <div>
@@ -185,7 +185,7 @@ function DiaryCard({ diary, open, onToggle }: { diary: api.AdminDiary; open: boo
                         <span className="gold"> · the author cannot reread this until {new Date(reflection.unlockTimestamp).toLocaleDateString()}</span>
                       )}
                     </p>
-                    <p className="serif mt-1 whitespace-pre-wrap text-sm leading-relaxed text-white/75">
+                    <p className="serif mt-1 whitespace-pre-wrap text-sm leading-relaxed text-soft">
                       {reflection.body}
                     </p>
                   </div>

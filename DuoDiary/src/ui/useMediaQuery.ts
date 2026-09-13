@@ -20,5 +20,12 @@ export function useMediaQuery(query: string): boolean {
 /** One page at a time below this width — a two-page spread on a phone is unreadable. */
 export const usePhone = () => useMediaQuery('(max-width: 860px)');
 
+/**
+ * The CSS media query zeroes animation durations, but it cannot reach a
+ * setTimeout -- so the staged intro and the greeting still made someone who has
+ * asked for less motion sit through five seconds of it.
+ */
+export const useReducedMotion = () => useMediaQuery('(prefers-reduced-motion: reduce)');
+
 /** No hover, so parallax that follows a cursor has nothing to follow. */
 export const useTouch = () => useMediaQuery('(hover: none) and (pointer: coarse)');

@@ -8,7 +8,7 @@ import { SettingsOverlay } from './SettingsOverlay';
 import { Nav } from './Nav';
 import { AdminOverlay } from './AdminOverlay';
 import { InkText } from './InkText';
-import { usePhone, useTouch } from './useMediaQuery';
+import { usePhone, useReducedMotion, useTouch } from './useMediaQuery';
 
 /**
  * The DOM layer floats over the single canvas. It is deliberately thin: the
@@ -33,15 +33,19 @@ export function Overlay() {
   const [greeted, setGreeted] = useState(false);
   const greetingFor = useRef<string | null>(null);
   const inside = isSignedIn && hasDiary;
+  const reducedMotion = useReducedMotion();
 
   useEffect(() => {
     if (!inside) { setGreeted(false); greetingFor.current = null; return; }
     if (greetingFor.current === currentUser?.id) return;
     greetingFor.current = currentUser?.id ?? null;
+    // Nobody who asked for less motion should wait out an animation to reach
+    // their own diary.
+    if (reducedMotion) { setGreeted(true); return; }
     setGreeted(false);
     const t = window.setTimeout(() => setGreeted(true), 2900);
     return () => clearTimeout(t);
-  }, [inside, currentUser?.id]);
+  }, [inside, currentUser?.id, reducedMotion]);
 
   // Signing in (or being dropped out of a diary) decides which place you land in.
   useEffect(() => {
@@ -135,10 +139,10 @@ function RoomOverlay() {
       }`}
     >
       <p className="label bleed">{settings.title}</p>
-      <h2 className="display bleed mt-2 text-3xl text-white/95 sm:text-4xl">
+      <h2 className="display bleed mt-2 text-3xl text-strong sm:text-4xl">
         Good to see you, {currentUser.name.split(' ')[0]}
       </h2>
-      <p className="serif bleed mt-3 max-w-md text-white/50">{status}</p>
+      <p className="serif bleed mt-3 max-w-md text-faint">{status}</p>
       <button
         className="btn pointer-events-auto mt-6 bleed"
         onClick={() => { if (todayChapter) setActiveChapterId(todayChapter.id); setScene('chapter'); }}
@@ -173,14 +177,14 @@ function SetupNotice() {
     <div className="pointer-events-auto fixed inset-0 z-30 flex items-center justify-center p-6">
       <div className="glass scroll-area max-h-[88dvh] w-full max-w-xl rounded-3xl p-6 settle sm:p-8">
         <p className="label">one step left</p>
-        <h2 className="display mt-1 text-3xl text-white/95">Connect a database</h2>
-        <p className="serif mt-3 leading-relaxed text-white/60">
+        <h2 className="display mt-1 text-3xl text-strong">Connect a database</h2>
+        <p className="serif mt-3 leading-relaxed text-soft">
           DuoDiary keeps your chapters in Supabase so two people can share a diary from two different devices.
           This build cannot see a project yet.
         </p>
 
         {local ? (
-          <ol className="mt-5 space-y-2 text-sm text-white/70">
+          <ol className="mt-5 space-y-2 text-sm text-soft">
             <li>1. Create a free project at <span className="gold">supabase.com</span>.</li>
             <li>2. Run <code className="gold">supabase/migrations/*.sql</code> in the SQL editor, in order.</li>
             <li>3. Copy <code className="gold">.env.example</code> to <code className="gold">.env.local</code> and paste your project URL and anon key.</li>
@@ -188,18 +192,18 @@ function SetupNotice() {
           </ol>
         ) : (
           <>
-            <p className="mt-5 text-sm leading-relaxed text-white/70">
+            <p className="mt-5 text-sm leading-relaxed text-soft">
               Your keys live in <code className="gold">.env.local</code>, which is deliberately not committed — so
               this deployment never received them. Set them on the host instead:
             </p>
-            <ol className="mt-4 space-y-2 text-sm text-white/70">
+            <ol className="mt-4 space-y-2 text-sm text-soft">
               <li>1. Open your project on the host → <span className="gold">Settings → Environment Variables</span>.</li>
               <li>
                 2. Add <code className="gold">VITE_SUPABASE_URL</code> and <code className="gold">VITE_SUPABASE_ANON_KEY</code>,
                 spelled exactly like that — a name this build does not recognise is ignored in silence, which looks
                 identical to having set nothing.
               </li>
-              <li>3. <strong className="text-white/90">Redeploy.</strong> These are compiled into the bundle at build time, so an existing deployment will not pick them up on its own.</li>
+              <li>3. <strong className="text-strong">Redeploy.</strong> These are compiled into the bundle at build time, so an existing deployment will not pick them up on its own.</li>
               <li>4. In Supabase → <span className="gold">Authentication → URL Configuration</span>, add <code className="gold">{window.location.origin}</code> to the redirect list, or Google sign-in will bounce back to the wrong place.</li>
             </ol>
           </>
@@ -208,19 +212,19 @@ function SetupNotice() {
         <div className="glass-quiet mt-5 rounded-2xl p-4">
           <p className="label">what this build can see</p>
           {visibleEnvNames.length ? (
-            <ul className="mt-2 space-y-0.5 font-mono text-[11px] text-white/60">
+            <ul className="mt-2 space-y-0.5 font-mono text-[11px] text-soft">
               {visibleEnvNames.map((name) => <li key={name}>{name}</li>)}
             </ul>
           ) : (
-            <p className="mt-2 text-[11px] text-white/45">No VITE_ variables at all reached this build.</p>
+            <p className="mt-2 text-[11px] text-faint">No VITE_ variables at all reached this build.</p>
           )}
-          <p className="mt-2 text-[11px] text-white/35">
+          <p className="mt-2 text-[11px] text-faint">
             Names only — values are never shown here. If the two you expect are missing or spelled differently,
             that is the whole problem.
           </p>
         </div>
 
-        <p className="mt-4 text-[11px] leading-relaxed text-white/35">
+        <p className="mt-4 text-[11px] leading-relaxed text-faint">
           The anon key belongs in the browser — row-level security, not secrecy, is what protects the data. The
           service_role key must never go in either place.
         </p>

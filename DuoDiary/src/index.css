@@ -7,10 +7,29 @@
   :root {
     --ink: 236 230 216;
     --ink-dim: 168 160 146;
-    --gold: 201 162 90;
+    /* Fallbacks only. applyPalette() in src/three/palette.ts sets the real
+       values on <html> from the theme, so the world and the interface cannot
+       drift apart the way they had. */
+    --fog: 4 6 15;
+    --gold: 216 180 90;
     --accent: 143 180 255;
+    --paper: 233 227 212;
     --glass: 12 10 16;
     --edge: 255 255 255;
+
+    /*
+     * Three text levels, and only three. The interface used seventeen different
+     * white alphas, which is not a hierarchy -- it is seventeen guesses.
+     *
+     * The alphas are chosen against #04060f, the darkest thing any of this sits
+     * on, so they hold everywhere. WCAG AA wants 4.5:1 for text this size, and
+     * white below about 46% alpha cannot reach it on this background however
+     * quiet it looks in isolation -- which is why the old /40 labels, carrying
+     * most of the functional text in the app, sat at 3.6:1.
+     */
+    --text-strong: 236 230 216;          /* 17:1  -- headings, entries, names */
+    --text-soft: 255 255 255 / 0.72;     /* 10:1  -- body and explanation */
+    --text-faint: 255 255 255 / 0.55;    /* 6.2:1 -- labels, meta, placeholders */
   }
 
   /* dvh, so the iOS toolbar sliding away does not leave a dead strip or push
@@ -19,22 +38,21 @@
 
   body {
     margin: 0;
-    background: #04060f;
+    background: rgb(var(--fog));
     color: rgb(var(--ink));
     font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
     overflow: hidden;               /* the world scrolls, the document does not */
     -webkit-font-smoothing: antialiased;
   }
 
-  body.theme-parchment { --gold: 224 180 90;  --accent: 217 164 65;  }
-  body.theme-rainy     { --gold: 168 183 201; --accent: 111 159 216; }
-  body.theme-botanical { --gold: 201 176 90;  --accent: 143 214 168; }
-  body.theme-aurora    { --gold: 201 160 255; --accent: 124 231 216; }
-
   ::-webkit-scrollbar { width: 5px; height: 5px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: rgb(var(--gold) / 0.28); border-radius: 999px; }
   ::-webkit-scrollbar-thumb:hover { background: rgb(var(--gold) / 0.5); }
+
+  /* Checkboxes and sliders were pinned to amber, so they stayed amber in the
+     cold, green and violet themes. One rule, and they follow --gold. */
+  input[type='checkbox'], input[type='range'] { accent-color: rgb(var(--gold)); }
 
   :focus-visible {
     outline: 2px solid rgb(var(--gold) / 0.8);
@@ -105,23 +123,13 @@
     background: rgb(var(--gold) / 0.09);
   }
 
-  /* Writing surface: paper, not a form field. */
-  .paper-field {
-    @apply w-full resize-none bg-transparent leading-relaxed outline-none;
-    font-family: 'Cormorant Garamond', Georgia, serif;
-    font-size: 1.19rem;
-    color: rgb(var(--ink));
-    background-image: linear-gradient(rgb(var(--edge) / 0.055) 1px, transparent 1px);
-    background-size: 100% 2.05rem;
-    line-height: 2.05rem;
-    padding-top: 0.15rem;
+  .label {
+    @apply text-[10px] uppercase tracking-[0.22em];
+    color: rgb(var(--text-faint));
   }
-  .paper-field::placeholder { color: rgb(var(--ink-dim) / 0.5); font-style: italic; }
-
-  .label { @apply text-[10px] uppercase tracking-[0.22em] text-white/40; }
 
   .field {
-    @apply w-full rounded-full bg-transparent px-4 py-2.5 text-sm outline-none placeholder:text-white/25;
+    @apply w-full rounded-full bg-transparent px-4 py-2.5 text-sm outline-none placeholder:text-faint;
     background: rgb(var(--glass) / 0.44);
     border: 1px solid rgb(var(--edge) / 0.1);
     transition: border-color .3s, box-shadow .3s;
@@ -129,13 +137,24 @@
   .field:focus { border-color: rgb(var(--gold) / 0.55); box-shadow: 0 0 0 3px rgb(var(--gold) / 0.12); }
 }
 
+@layer utilities {
+  .text-strong { color: rgb(var(--text-strong)); }
+  .text-soft   { color: rgb(var(--text-soft)); }
+  .text-faint  { color: rgb(var(--text-faint)); }
+}
+
 /* ----------------------------------------------------------- the spread */
 @layer components {
   /* A real book is paper under a lamp, not a dark panel. The spread deliberately
      inverts the app's palette: ink on vellum, lit from the gutter outward. */
   .spread {
-    --paper: 238 229 208;
-    --paper-edge: 206 192 163;
+    /* --paper is the theme's, set on :root. The edge is derived from it so the
+       page and the book in the world are the same cream -- a fixed tan edge
+       around a cold grey page is exactly the drift this pass is removing.
+       Unlike the others this one is a colour, not channels, because color-mix
+       returns a colour; the static line above it covers browsers without it. */
+    --paper-edge: rgb(206 192 163);
+    --paper-edge: color-mix(in srgb, rgb(var(--paper)) 78%, #6b5a3a);
     --ink: 38 30 24;
     --ink-soft: 92 76 58;
     position: relative;
@@ -157,7 +176,7 @@
     color: rgb(var(--ink));
     overflow: hidden;
     background:
-      radial-gradient(120% 90% at 50% 0%, rgb(var(--paper)) 0%, rgb(var(--paper-edge) / .75) 120%),
+      radial-gradient(120% 90% at 50% 0%, rgb(var(--paper)) 0%, color-mix(in srgb, var(--paper-edge) 75%, transparent) 120%),
       rgb(var(--paper));
   }
 
@@ -175,8 +194,8 @@
     mix-blend-mode: multiply;
   }
 
-  .page-left  { border-right: 1px solid rgb(var(--paper-edge) / .6); }
-  .page-right { border-left: 1px solid rgb(var(--paper-edge) / .6); }
+  .page-left  { border-right: 1px solid color-mix(in srgb, var(--paper-edge) 60%, transparent); }
+  .page-right { border-left: 1px solid color-mix(in srgb, var(--paper-edge) 60%, transparent); }
 
   /* the gutter: two pages meeting, with the shadow the binding casts */
   .spread::after {
@@ -219,6 +238,30 @@
     white-space: pre-wrap;
   }
 
+  /* A small field on vellum. .field is glass and gold and would be a hole in
+     the page, so this is the same control in ink. */
+  .ink-input {
+    @apply w-full rounded-full bg-transparent px-3 py-1.5 text-xs outline-none;
+    border: 1px solid rgb(var(--ink) / .22);
+    color: rgb(var(--ink));
+    transition: border-color .3s, box-shadow .3s;
+  }
+  .ink-input::placeholder { color: rgb(var(--ink-soft) / .55); }
+  .ink-input:focus {
+    border-color: rgb(var(--ink) / .55);
+    box-shadow: 0 0 0 3px rgb(var(--ink) / .10);
+  }
+
+  /* The only action on a solo right-hand page. It was a `page-tool`, the same
+     weight as "tidy". */
+  .page-cta {
+    @apply rounded-full px-4 py-2 text-[13px] transition;
+    border: 1px solid rgb(var(--ink) / .42);
+    background: rgb(var(--ink) / .05);
+    color: rgb(var(--ink));
+  }
+  .page-cta:hover { background: rgb(var(--ink) / .10); border-color: rgb(var(--ink) / .6); }
+
   .page-label {
     @apply text-[10px] uppercase tracking-[0.24em];
     color: rgb(var(--ink-soft) / .75);
@@ -252,7 +295,7 @@
     height: 74px;
     cursor: pointer;
     border: 0;
-    background: linear-gradient(315deg, rgb(var(--paper-edge)) 0%, rgb(var(--paper)) 55%, transparent 56%);
+    background: linear-gradient(315deg, var(--paper-edge) 0%, rgb(var(--paper)) 55%, transparent 56%);
     box-shadow: -6px -6px 16px -8px rgb(0 0 0 / .5);
     transition: width .4s cubic-bezier(.16,1,.3,1), height .4s cubic-bezier(.16,1,.3,1);
   }
@@ -277,7 +320,9 @@
   @keyframes bleed { from { opacity: 0; filter: blur(10px); } to { opacity: 1; filter: blur(0); } }
   .bleed { animation: bleed 1.4s ease-out both; }
 
-  @keyframes breathe { 0%,100% { opacity:.55 } 50% { opacity:1 } }
+  /* Floor at .85: this runs on .label text, and dropping to .55 took the one
+     line on screen during a load below the contrast floor. */
+  @keyframes breathe { 0%,100% { opacity:.85 } 50% { opacity:1 } }
   .breathe { animation: breathe 3.4s ease-in-out infinite; }
 
   /* Ink drawing itself along a path. */

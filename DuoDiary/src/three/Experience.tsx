@@ -55,7 +55,7 @@ function CameraRig({
    *  from one tap would leave the camera permanently off-centre. */
   parallax: boolean;
 }) {
-  const { camera } = useThree();
+  const { camera, size } = useThree();
   const base = useRef(new THREE.Vector3(...VIEWS.intro.pos));
   const target = useRef(new THREE.Vector3(...VIEWS.intro.look));
   const pointer = useRef({ x: 0, y: 0 });
@@ -64,6 +64,28 @@ function CameraRig({
   const wantPos = useRef(new THREE.Vector3());
   const wantLook = useRef(new THREE.Vector3());
   const desired = useRef(new THREE.Vector3());
+
+  /*
+   * Every view in VIEWS was framed on a wide window. three.js stores a VERTICAL
+   * field of view, so the same numbers on a tall window give a narrower
+   * horizontal field and cut the sides off whatever is being framed -- the book
+   * on the intro screen loses both edges on a phone.
+   *
+   * Widening the lens instead would fix the crop and bend the room, so the
+   * camera steps back along its own sight line instead.
+   *
+   * The square root is the point. Stepping back by the full aspect ratio holds
+   * the horizontal framing exactly and buys it by doubling how much sky is in
+   * shot, which leaves the book a stamp in the middle of a tall screen. The
+   * root splits the difference between the two framings: a little is cropped, a
+   * little is given away, and the subject still fills the screen. Both numbers
+   * are tuning knobs -- 1.7 is where a 390x844 screen stops clipping the book.
+   */
+  const pull = useMemo(() => {
+    const aspect = size.width / Math.max(size.height, 1);
+    const reference = 16 / 9;
+    return aspect >= reference ? 1 : Math.min(Math.sqrt(reference / aspect), 1.7);
+  }, [size.width, size.height]);
 
   useEffect(() => {
     if (!parallax) { pointer.current.x = 0; pointer.current.y = 0; return; }
@@ -80,8 +102,8 @@ function CameraRig({
     // scene, not a tween fired on a change: no tween can be missed, interrupted
     // or left behind when scenes are switched faster than the flight takes.
     const view = VIEWS[scene];
-    wantPos.current.set(...view.pos);
     wantLook.current.set(...view.look);
+    wantPos.current.set(...view.pos).sub(wantLook.current).multiplyScalar(pull).add(wantLook.current);
 
     const ease = reducedMotion ? 1 : 1 - Math.pow(0.06, delta); // ~1.5s to settle
     base.current.lerp(wantPos.current, ease);

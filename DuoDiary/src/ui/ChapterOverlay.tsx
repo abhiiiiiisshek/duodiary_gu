@@ -97,7 +97,7 @@ export function ChapterOverlay() {
     <div
       className={
         phone
-          ? 'pointer-events-none fixed inset-0 z-20 flex flex-col gap-2 px-2 pb-[5.5rem] pt-3 safe-b'
+          ? 'pointer-events-none fixed inset-0 z-20 flex flex-col gap-2 px-2 pb-nav pt-chrome'
           : 'pointer-events-none fixed inset-0 z-20 flex items-center justify-center px-4 pb-24 pt-16'
       }
     >
@@ -312,7 +312,7 @@ export function ChapterOverlay() {
           )}
 
           {neighbours.next && !privateOpen && (
-            <button className="page-label absolute bottom-3 right-24 hover:underline"
+            <button className={`page-label absolute bottom-3 hover:underline ${phone ? 'right-6' : 'right-24'}`}
                     onClick={() => turnTo(neighbours.next.id)}>
               {neighbours.next.date.slice(5)} ›
             </button>

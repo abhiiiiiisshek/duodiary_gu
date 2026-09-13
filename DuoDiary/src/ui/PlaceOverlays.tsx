@@ -51,7 +51,7 @@ export function TimelineOverlay() {
         onChange={(e) => setQuery(e.target.value)}
       />
 
-      <div className="scroll-area mt-4 max-h-[52vh] space-y-2 pr-1 stagger">
+      <div className="scroll-area mt-4 space-y-2 pr-1 stagger max-sm:max-h-none sm:max-h-[52vh]">
         {visible.map((chapter) => {
           const written = Object.values(chapter.sharedEntries).filter((e) => e.text.trim()).length;
           return (
@@ -109,7 +109,7 @@ export function ThreadsOverlay() {
 
           <Trajectory thread={thread} />
 
-          <div className="scroll-area mt-5 max-h-[28vh] space-y-2 pr-1">
+          <div className="scroll-area mt-5 space-y-2 pr-1 max-sm:max-h-none sm:max-h-[28vh]">
             {[...thread.keyMoments].reverse().map((moment, i) => (
               <div key={i} className="glass-quiet rounded-xl p-3">
                 <p className="label">{moment.date} · {moment.authorName}</p>
@@ -230,7 +230,7 @@ export function VaultOverlay() {
 
   return (
     <Panel side="right" title="Your pages" subtitle={`${userReflections.length} kept`}>
-      <div className="scroll-area max-h-[60vh] space-y-2 pr-1 stagger">
+      <div className="scroll-area space-y-2 pr-1 stagger max-sm:max-h-none sm:max-h-[60vh]">
         {userReflections.map((reflection) => {
           const due = isReflectionOpen(reflection);
           const showing = openId === reflection.id;
@@ -295,7 +295,7 @@ function Panel({
   // sheet resting on the bottom edge, clear of the navigation bar.
   if (phone) {
     return (
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 px-2 pb-[5.5rem] safe-b">
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 px-2 pb-nav">
         <section className="glass pointer-events-auto max-h-[68dvh] overflow-y-auto rounded-3xl p-5 settle">
           <p className="label">{subtitle}</p>
           <h2 className="display mt-1 text-2xl text-white/95">{title}</h2>

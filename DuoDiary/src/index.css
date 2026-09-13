@@ -378,6 +378,26 @@
   .btn:hover { transform: none; box-shadow: none; }
 }
 
-/* Home indicator and notch. */
-.safe-b { padding-bottom: env(safe-area-inset-bottom); }
-.safe-t { padding-top: env(safe-area-inset-top); }
+/*
+ * Home indicator and notch.
+ *
+ * These live in @layer utilities on purpose. An unlayered rule beats every
+ * layered one no matter what the specificity is, so a bare `.safe-b` next to
+ * `pb-10` does not add to that padding -- it replaces it with the inset, which
+ * is 0px on a desktop. Every one of these is written as a calc that carries its
+ * own base amount, and nothing else sets padding on the same edge.
+ */
+@layer utilities {
+  /* clears the bottom navigation bar and the home indicator */
+  .pb-nav { padding-bottom: calc(5.5rem + env(safe-area-inset-bottom)); }
+  /* clears the top account chip and the notch */
+  .pt-chrome { padding-top: calc(4.25rem + env(safe-area-inset-top)); }
+  /* the bars themselves: their own edge gap plus the inset */
+  .pb-edge { padding-bottom: calc(0.5rem + env(safe-area-inset-bottom)); }
+  .pt-edge { padding-top: calc(0.5rem + env(safe-area-inset-top)); }
+  /* a full-screen surface that owns both edges */
+  .py-edge {
+    padding-top: calc(0.75rem + env(safe-area-inset-top));
+    padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
+  }
+}

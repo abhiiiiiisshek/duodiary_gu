@@ -37,7 +37,7 @@ export function SettingsOverlay() {
       onClick={() => setIsSettingsOpen(false)}
     >
       <div
-        className="glass scroll-area max-h-[88dvh] w-full max-w-2xl rounded-3xl p-5 settle safe-b sm:p-8"
+        className="glass scroll-area max-h-[88dvh] w-full max-w-2xl rounded-3xl p-5 settle mb-[env(safe-area-inset-bottom)] sm:mb-0 sm:p-8"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-label="Diary settings"

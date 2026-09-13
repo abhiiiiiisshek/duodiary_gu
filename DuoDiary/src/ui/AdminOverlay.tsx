@@ -55,7 +55,7 @@ export function AdminOverlay({ onClose }: { onClose: () => void }) {
   }, [diaries]);
 
   return (
-    <div className="pointer-events-auto fixed inset-0 z-40 overflow-y-auto bg-[#07080c] safe-t safe-b">
+    <div className="pointer-events-auto fixed inset-0 z-40 overflow-y-auto bg-[#07080c] py-edge">
       <div className="mx-auto w-full max-w-4xl px-4 py-6 sm:px-8 sm:py-10">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>

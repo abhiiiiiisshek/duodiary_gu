@@ -27,7 +27,7 @@ export function IntroOverlay() {
   };
 
   return (
-    <div className="pointer-events-none fixed inset-0 z-20 flex flex-col items-center justify-between px-5 py-10 safe-b safe-t sm:py-14">
+    <div className="pointer-events-none fixed inset-0 z-20 flex flex-col items-center justify-between px-5 py-edge sm:py-14">
       <header className="text-center">
         {stage >= 1 && <p className="label bleed">A living journal for one or two people</p>}
         {stage >= 1 && (
@@ -245,7 +245,7 @@ export function OnboardOverlay() {
 
 function Frame({ children }: { children: React.ReactNode }) {
   return (
-    <div className="pointer-events-none fixed inset-0 z-20 flex items-center justify-center p-3 safe-b safe-t sm:justify-end sm:p-6 sm:pr-16">
+    <div className="pointer-events-none fixed inset-0 z-20 flex items-center justify-center px-3 py-edge sm:justify-end sm:p-6 sm:pr-16">
       <div className="glass scroll-area pointer-events-auto max-h-[90dvh] w-full max-w-lg rounded-3xl p-5 settle sm:p-8">
         {children}
       </div>

@@ -25,7 +25,7 @@ export function Nav() {
       <nav
         className={
           phone
-            ? 'pointer-events-auto fixed inset-x-0 bottom-0 z-30 px-2 pb-2 safe-b'
+            ? 'pointer-events-auto fixed inset-x-0 bottom-0 z-30 px-2 pb-edge'
             : 'pointer-events-auto fixed left-1/2 bottom-6 z-30 -translate-x-1/2'
         }
         aria-label="Places in the diary"
@@ -54,7 +54,7 @@ export function Nav() {
       <div
         className={
           phone
-            ? 'pointer-events-auto fixed inset-x-2 top-0 z-30 flex items-center gap-2 pt-2 safe-t'
+            ? 'pointer-events-auto fixed inset-x-2 top-0 z-30 flex items-center gap-2 pt-edge'
             : 'pointer-events-auto fixed right-6 top-6 z-30 flex items-center gap-2'
         }
       >
